@@ -1,0 +1,53 @@
+{
+  "app": {
+    "title": "Hajimi CLI Sync",
+    "subtitle": "One-click sync your API config to local AI CLI tools"
+  },
+  "settings": {
+    "apiUrl": "API URL",
+    "apiKey": "API Key",
+    "defaultModel": "Default Model",
+    "syncAll": "Sync All",
+    "restoreAll": "Restore All",
+    "customModel": "Custom model ID...",
+    "apiModelsGroup": "API Models",
+    "language": "Language"
+  },
+  "cli": {
+    "notDetected": "Not detected",
+    "version": "v{{version}}",
+    "synced": "Synced",
+    "notSynced": "Not synced",
+    "detecting": "Detecting...",
+    "currentUrl": "Current URL",
+    "noUrl": "---",
+    "model": "Model",
+    "sync": "Sync",
+    "restore": "Restore",
+    "viewConfig": "View Config",
+    "syncedModels": "{{count}} models synced"
+  },
+  "config": {
+    "title": "{{name}} Config",
+    "close": "Close",
+    "selectFile": "Select file",
+    "noContent": "No config content"
+  },
+  "toast": {
+    "syncSuccess": "{{name}} synced successfully",
+    "syncFailed": "{{name}} sync failed: {{error}}",
+    "restoreSuccess": "{{name}} restored successfully",
+    "restoreFailed": "{{name}} restore failed: {{error}}",
+    "syncAllSuccess": "All CLIs synced ({{success}}/{{total}})",
+    "syncAllFailed": "Sync completed with errors",
+    "noInstalledCli": "No installed CLI tools detected",
+    "apiKeyRequired": "API Key is required",
+    "noBackups": "No backup files found"
+  },
+  "confirm": {
+    "restoreTitle": "Restore All Configs",
+    "restoreMessage": "This will restore all CLI configs to their pre-sync state. Are you sure?",
+    "cancel": "Cancel",
+    "restore": "Restore"
+  }
+}

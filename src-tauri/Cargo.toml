@@ -1,0 +1,32 @@
+[package]
+name = "hajimi-cli-sync"
+version = "1.0.0"
+description = "Sync CLI tool configurations with one click"
+authors = ["hajimi"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "hajimi_cli_sync_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "^2.2.5", features = [] }
+
+[dependencies]
+tauri = { version = "^2.2.5", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+dirs = "5.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+regex = "1.12"
+toml = "0.8"
+toml_edit = "0.22"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+thiserror = "2.0"
+fs2 = "0.4"
+sysinfo = "0.33"
+tokio = { version = "1", features = ["full"] }
+zip = "2.2"

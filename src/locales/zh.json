@@ -1,0 +1,53 @@
+{
+  "app": {
+    "title": "Hajimi CLI Sync",
+    "subtitle": "一键同步 API 配置到本地 AI CLI 工具"
+  },
+  "settings": {
+    "apiUrl": "API 地址",
+    "apiKey": "API 密钥",
+    "defaultModel": "默认模型",
+    "syncAll": "全部同步",
+    "restoreAll": "全部恢复",
+    "customModel": "自定义模型 ID...",
+    "apiModelsGroup": "API 模型",
+    "language": "语言"
+  },
+  "cli": {
+    "notDetected": "未检测到",
+    "version": "v{{version}}",
+    "synced": "已同步",
+    "notSynced": "未同步",
+    "detecting": "检测中...",
+    "currentUrl": "当前 URL",
+    "noUrl": "---",
+    "model": "模型",
+    "sync": "同步",
+    "restore": "恢复",
+    "viewConfig": "查看配置",
+    "syncedModels": "已同步 {{count}} 个模型"
+  },
+  "config": {
+    "title": "{{name}} 配置",
+    "close": "关闭",
+    "selectFile": "选择文件",
+    "noContent": "暂无配置内容"
+  },
+  "toast": {
+    "syncSuccess": "{{name}} 同步成功",
+    "syncFailed": "{{name}} 同步失败: {{error}}",
+    "restoreSuccess": "{{name}} 恢复成功",
+    "restoreFailed": "{{name}} 恢复失败: {{error}}",
+    "syncAllSuccess": "全部同步完成 ({{success}}/{{total}})",
+    "syncAllFailed": "同步完成，部分失败",
+    "noInstalledCli": "未检测到已安装的 CLI 工具",
+    "apiKeyRequired": "请输入 API 密钥",
+    "noBackups": "未找到备份文件"
+  },
+  "confirm": {
+    "restoreTitle": "恢复所有配置",
+    "restoreMessage": "这将把所有 CLI 配置恢复到同步前的状态，确定继续吗？",
+    "cancel": "取消",
+    "restore": "恢复"
+  }
+}
