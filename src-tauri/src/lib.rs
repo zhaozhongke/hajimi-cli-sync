@@ -1,3 +1,4 @@
+mod account;
 mod auto_installer;
 mod cli_sync;
 mod droid_sync;
@@ -556,6 +557,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(account::AccountState::new())
         .invoke_handler(tauri::generate_handler![
             get_all_cli_status,
             sync_cli,
@@ -570,6 +572,12 @@ pub fn run() {
             auto_installer::install_cli_tool,
             open_external_url,
             open_config_folder,
+            account::check_platform,
+            account::account_login,
+            account::account_get_tokens,
+            account::account_check_session,
+            account::account_restore_session,
+            account::account_logout,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

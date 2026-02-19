@@ -42,6 +42,35 @@ export interface CliInfo {
   postSyncHintKey?: string;
 }
 
+// ── Account login types ──
+
+export interface PlatformInfo {
+  system_name: string;
+  version: string;
+  register_enabled: boolean;
+}
+
+export interface AccountInfo {
+  user_id: number;
+  username: string;
+  display_name: string;
+}
+
+export interface ApiTokenInfo {
+  id: number;
+  name: string;
+  key: string;
+  status: number; // 1=enabled, 2=disabled, 3=expired, 4=exhausted
+  used_quota: number;
+  remain_quota: number;
+  unlimited_quota: boolean;
+  expired_time: number; // unix timestamp, -1 = never
+  model_limits_enabled: boolean;
+  model_limits: string[];
+}
+
+export type AuthMode = "manual" | "account";
+
 export const CLI_LIST: CliInfo[] = [
   { id: "claude", name: "Claude Code", icon: "terminal", color: "border-purple-400", installType: "npm", category: "cli", descKey: "toolDesc.claude" },
   { id: "opencode", name: "OpenCode", icon: "file-code", color: "border-orange-400", installType: "manual", category: "cli", downloadUrl: "https://github.com/anomalyco/opencode", descKey: "toolDesc.opencode" },
