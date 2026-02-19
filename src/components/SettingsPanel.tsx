@@ -3,9 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
-import { Eye, EyeOff, Check, X, RefreshCw, Download, Upload } from "lucide-react";
+import { Eye, EyeOff, Check, X, RefreshCw, Download, Upload, KeyRound, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ModelSelector } from "./ModelSelector";
+import { AccountLogin } from "./AccountLogin";
+import type { AuthMode } from "../types";
 
 interface SettingsPanelProps {
   url: string;
@@ -35,9 +37,17 @@ export function SettingsPanel({
   onPerCliModelsChange,
 }: SettingsPanelProps) {
   const { t } = useTranslation();
+  const [authMode, setAuthMode] = useState<AuthMode>(
+    () => (localStorage.getItem("hajimi-auth-mode") as AuthMode) || "manual"
+  );
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+
+  const handleAuthModeChange = (mode: AuthMode) => {
+    setAuthMode(mode);
+    localStorage.setItem("hajimi-auth-mode", mode);
+  };
 
   const urlError = useMemo(() => {
     const trimmed = url.trim();
@@ -47,7 +57,7 @@ export function SettingsPanel({
     return null;
   }, [url, t]);
 
-  // Determine which step user is on
+  // Determine which step user is on (manual mode only)
   const currentStep = useMemo(() => {
     if (!url.trim() || urlError) return 1;
     if (!apiKey.trim()) return 2;
@@ -110,6 +120,11 @@ export function SettingsPanel({
     }
   };
 
+  const handleAccountConfigReady = (accountUrl: string, accountApiKey: string) => {
+    onUrlChange(accountUrl);
+    onApiKeyChange(accountApiKey);
+  };
+
   const stepIndicator = (step: number, label: string) => {
     const isActive = currentStep === step;
     const isDone = currentStep > step;
@@ -139,100 +154,143 @@ export function SettingsPanel({
 
   return (
     <div className="space-y-3">
-      {/* Step indicators */}
-      <div className="flex items-center gap-4 pb-1">
-        {stepIndicator(1, t("steps.step1"))}
-        <div className="flex-1 h-px bg-base-300" />
-        {stepIndicator(2, t("steps.step2"))}
-        <div className="flex-1 h-px bg-base-300" />
-        {stepIndicator(3, t("steps.step3"))}
+      {/* Auth mode tabs */}
+      <div className="flex rounded-lg bg-base-200 p-0.5">
+        <button
+          className={`flex-1 btn btn-xs gap-1.5 ${
+            authMode === "manual"
+              ? "btn-primary"
+              : "btn-ghost"
+          }`}
+          onClick={() => handleAuthModeChange("manual")}
+        >
+          <KeyRound className="w-3 h-3" />
+          {t("account.modeManual")}
+        </button>
+        <button
+          className={`flex-1 btn btn-xs gap-1.5 ${
+            authMode === "account"
+              ? "btn-primary"
+              : "btn-ghost"
+          }`}
+          onClick={() => handleAuthModeChange("account")}
+        >
+          <UserCircle className="w-3 h-3" />
+          {t("account.modeAccount")}
+        </button>
       </div>
 
-      {/* Step 1: URL */}
-      <div className="form-control">
-        <input
-          type="text"
-          className={`input input-bordered input-sm w-full ${urlError ? "input-error" : currentStep === 1 ? "input-primary" : ""}`}
-          value={url}
-          onChange={(e) => onUrlChange(e.target.value)}
-          placeholder={t("steps.step1Hint")}
-        />
-        {urlError && (
-          <span className="label-text-alt text-error text-xs mt-1">{urlError}</span>
-        )}
-      </div>
+      {/* Manual mode */}
+      {authMode === "manual" && (
+        <>
+          {/* Step indicators */}
+          <div className="flex items-center gap-4 pb-1">
+            {stepIndicator(1, t("steps.step1"))}
+            <div className="flex-1 h-px bg-base-300" />
+            {stepIndicator(2, t("steps.step2"))}
+            <div className="flex-1 h-px bg-base-300" />
+            {stepIndicator(3, t("steps.step3"))}
+          </div>
 
-      {/* Step 2: API Key */}
-      <div className="form-control">
-        <div className="join w-full">
-          <input
-            type={showKey ? "text" : "password"}
-            className={`input input-bordered input-sm join-item w-full ${currentStep === 2 ? "input-primary" : ""}`}
-            value={apiKey}
-            onChange={(e) => onApiKeyChange(e.target.value)}
-            placeholder={t("steps.step2Hint")}
-          />
-          <button
-            className="btn btn-sm btn-ghost join-item"
-            onClick={() => setShowKey(!showKey)}
-            aria-label={showKey ? "Hide API key" : "Show API key"}
-          >
-            {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            className={`btn btn-sm join-item ${
-              testResult === "success"
-                ? "btn-success"
-                : testResult === "error"
-                ? "btn-error"
-                : "btn-ghost"
-            }`}
-            onClick={handleTestConnection}
-            disabled={testing || !!urlError || !apiKey.trim()}
-            title={t("connection.test")}
-          >
-            {testing ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : testResult === "success" ? (
-              <Check className="w-3.5 h-3.5" />
-            ) : testResult === "error" ? (
-              <X className="w-3.5 h-3.5" />
-            ) : (
-              t("connection.test")
+          {/* Step 1: URL */}
+          <div className="form-control">
+            <input
+              type="text"
+              className={`input input-bordered input-sm w-full ${urlError ? "input-error" : currentStep === 1 ? "input-primary" : ""}`}
+              value={url}
+              onChange={(e) => onUrlChange(e.target.value)}
+              placeholder={t("steps.step1Hint")}
+            />
+            {urlError && (
+              <span className="label-text-alt text-error text-xs mt-1">{urlError}</span>
             )}
-          </button>
-        </div>
-      </div>
+          </div>
 
-      {/* Step 3: Default Model */}
-      <div className="form-control">
-        <ModelSelector
-          value={defaultModel}
-          onChange={onModelChange}
+          {/* Step 2: API Key */}
+          <div className="form-control">
+            <div className="join w-full">
+              <input
+                type={showKey ? "text" : "password"}
+                className={`input input-bordered input-sm join-item w-full ${currentStep === 2 ? "input-primary" : ""}`}
+                value={apiKey}
+                onChange={(e) => onApiKeyChange(e.target.value)}
+                placeholder={t("steps.step2Hint")}
+              />
+              <button
+                className="btn btn-sm btn-ghost join-item"
+                onClick={() => setShowKey(!showKey)}
+                aria-label={showKey ? "Hide API key" : "Show API key"}
+              >
+                {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                className={`btn btn-sm join-item ${
+                  testResult === "success"
+                    ? "btn-success"
+                    : testResult === "error"
+                    ? "btn-error"
+                    : "btn-ghost"
+                }`}
+                onClick={handleTestConnection}
+                disabled={testing || !!urlError || !apiKey.trim()}
+                title={t("connection.test")}
+              >
+                {testing ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : testResult === "success" ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : testResult === "error" ? (
+                  <X className="w-3.5 h-3.5" />
+                ) : (
+                  t("connection.test")
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Step 3: Default Model */}
+          <div className="form-control">
+            <ModelSelector
+              value={defaultModel}
+              onChange={onModelChange}
+              apiModels={apiModels}
+              modelsLoading={modelsLoading}
+              modelsError={modelsError}
+              size="sm"
+            />
+          </div>
+
+          {/* Import / Export */}
+          <div className="flex gap-2">
+            <button
+              className="btn btn-ghost btn-xs flex-1 gap-1 opacity-60"
+              onClick={handleExportSettings}
+            >
+              <Download className="w-3 h-3" />
+              {t("settings.export")}
+            </button>
+            <button
+              className="btn btn-ghost btn-xs flex-1 gap-1 opacity-60"
+              onClick={handleImportSettings}
+            >
+              <Upload className="w-3 h-3" />
+              {t("settings.import")}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Account mode */}
+      {authMode === "account" && (
+        <AccountLogin
+          onConfigReady={handleAccountConfigReady}
+          defaultModel={defaultModel}
+          onModelChange={onModelChange}
           apiModels={apiModels}
           modelsLoading={modelsLoading}
           modelsError={modelsError}
-          size="sm"
         />
-      </div>
-
-      {/* Import / Export */}
-      <div className="flex gap-2">
-        <button
-          className="btn btn-ghost btn-xs flex-1 gap-1 opacity-60"
-          onClick={handleExportSettings}
-        >
-          <Download className="w-3 h-3" />
-          {t("settings.export")}
-        </button>
-        <button
-          className="btn btn-ghost btn-xs flex-1 gap-1 opacity-60"
-          onClick={handleImportSettings}
-        >
-          <Upload className="w-3 h-3" />
-          {t("settings.import")}
-        </button>
-      </div>
+      )}
     </div>
   );
 }

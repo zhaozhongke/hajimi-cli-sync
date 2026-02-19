@@ -84,6 +84,8 @@ pub struct AccountInfo {
     pub user_id: i64,
     pub username: String,
     pub display_name: String,
+    /// Session cookie returned on login, None on session check
+    pub session_cookie: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -157,11 +159,11 @@ pub async fn check_platform(base_url: String) -> Result<PlatformInfo, String> {
         .await
         .map_err(|e| {
             if e.is_timeout() {
-                "Connection timed out".to_string()
+                "CONNECT_TIMEOUT".to_string()
             } else if e.is_connect() {
-                format!("Cannot connect to {}: {}", base, e)
+                "CONNECT_FAILED".to_string()
             } else {
-                format!("Request failed: {}", e)
+                "CONNECT_FAILED".to_string()
             }
         })?;
 
@@ -217,11 +219,11 @@ pub async fn account_login(
         .await
         .map_err(|e| {
             if e.is_timeout() {
-                "Connection timed out".to_string()
+                "CONNECT_TIMEOUT".to_string()
             } else if e.is_connect() {
-                format!("Cannot connect to server: {}", e)
+                "CONNECT_FAILED".to_string()
             } else {
-                format!("Login request failed: {}", e)
+                "CONNECT_FAILED".to_string()
             }
         })?;
 
@@ -229,49 +231,61 @@ pub async fn account_login(
     let session_cookie = extract_session_cookie(&response);
 
     let status_code = response.status();
-    let body: ApiResponse<LoginData> = response
+    let body: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Invalid response: {}", e))?;
+        .map_err(|_| "INVALID_RESPONSE".to_string())?;
 
-    if !body.success {
-        let msg = body.message.unwrap_or_else(|| "Login failed".to_string());
-        return Err(msg);
+    // Check for 2FA requirement
+    if let Some(true) = body.get("data").and_then(|d| d.get("require_2fa")).and_then(|v| v.as_bool()) {
+        return Err("REQUIRE_2FA".to_string());
+    }
+
+    let success = body.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
+
+    if !success {
+        let server_msg = body.get("message").and_then(|v| v.as_str()).unwrap_or("");
+        // Map common new-api error messages to error codes
+        if server_msg.contains("密码") || server_msg.contains("password") || server_msg.contains("用户名") || server_msg.contains("username") {
+            return Err("WRONG_CREDENTIALS".to_string());
+        }
+        return Err("LOGIN_FAILED".to_string());
     }
 
     if !status_code.is_success() {
-        return Err(format!("Server returned {}", status_code));
+        return Err("LOGIN_FAILED".to_string());
     }
 
-    let login_data = body.data.ok_or("No data in login response")?;
+    let data = body.get("data").ok_or("INVALID_RESPONSE")?;
+    let id = data.get("id").and_then(|v| v.as_i64()).ok_or("INVALID_RESPONSE")?;
+    let uname = data.get("username").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let display = data.get("display_name").and_then(|v| v.as_str()).unwrap_or(&uname).to_string();
+    let user_status = data.get("status").and_then(|v| v.as_i64());
 
     // Check if user is disabled
-    if login_data.status == Some(2) {
-        return Err("Account is disabled".to_string());
+    if user_status == Some(2) {
+        return Err("ACCOUNT_DISABLED".to_string());
     }
 
-    let session = session_cookie.ok_or("No session cookie received from server")?;
+    let session = session_cookie.ok_or("NO_SESSION_COOKIE")?;
 
     // Store in state
     {
         let mut inner = state
             .inner
             .lock()
-            .map_err(|_| "Internal state error".to_string())?;
-        inner.session_cookie = Some(session);
-        inner.user_id = Some(login_data.id);
-        inner.username = Some(login_data.username.clone());
+            .map_err(|_| "INTERNAL_ERROR".to_string())?;
+        inner.session_cookie = Some(session.clone());
+        inner.user_id = Some(id);
+        inner.username = Some(uname.clone());
         inner.base_url = Some(base);
     }
 
-    let display_name = login_data
-        .display_name
-        .unwrap_or_else(|| login_data.username.clone());
-
     Ok(AccountInfo {
-        user_id: login_data.id,
-        username: login_data.username,
-        display_name,
+        user_id: id,
+        username: uname,
+        display_name: display,
+        session_cookie: Some(session),
     })
 }
 
@@ -395,9 +409,12 @@ pub async fn account_check_session(
     let status_code = response.status();
 
     if status_code.as_u16() == 401 || status_code.as_u16() == 403 {
-        // Clear expired session
+        // Clear entire expired session
         if let Ok(mut inner) = state.inner.lock() {
             inner.session_cookie = None;
+            inner.user_id = None;
+            inner.username = None;
+            inner.base_url = None;
         }
         return Err("SESSION_EXPIRED".to_string());
     }
@@ -421,6 +438,7 @@ pub async fn account_check_session(
         user_id: data.id,
         username: data.username.clone(),
         display_name: data.display_name.unwrap_or(data.username),
+        session_cookie: None,
     })
 }
 

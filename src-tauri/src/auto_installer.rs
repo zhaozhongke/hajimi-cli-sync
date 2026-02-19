@@ -228,6 +228,9 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
             )));
         }
         // VS Code extensions — install via `code --install-extension`
+        "claude-vscode" => {
+            return install_vscode_extension("anthropic.claude-code").await;
+        }
         "cline" => {
             return install_vscode_extension("saoudrizwan.claude-dev").await;
         }

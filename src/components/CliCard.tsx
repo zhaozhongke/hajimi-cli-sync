@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   Terminal, Code, Sparkles, FileCode, Bot, MousePointer,
   MessageSquare, Cherry, Cpu, FileText, Rabbit, Ruler,
-  Beer, Brain, Zap, Waves, Check, CircleDot, Info,
+  Beer, Brain, Zap, Waves, Check, CircleDot, Info, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import type { CliInfo, CliStatusResult } from "../types";
@@ -49,6 +49,8 @@ interface CliCardProps {
   onViewConfig: () => void;
   onInstall: () => void;
   onDownload: () => void;
+  onLaunch?: () => void;
+  onCommunity?: () => void;
 }
 
 export function CliCard({
@@ -67,6 +69,8 @@ export function CliCard({
   onViewConfig,
   onInstall,
   onDownload,
+  onLaunch,
+  onCommunity,
 }: CliCardProps) {
   const { t } = useTranslation();
 
@@ -80,43 +84,58 @@ export function CliCard({
 
   return (
     <div
-      className={`card card-compact bg-base-100 shadow-sm border border-base-300 transition-all hover:shadow-md ${
-        !installed ? "opacity-60" : ""
+      className={`card card-compact glass-card card-hover shadow-sm transition-all ${
+        !installed ? "opacity-50" : ""
       }`}
     >
-      <div className="card-body gap-1.5 p-3">
+      <div className="card-body gap-2 p-3.5">
         {/* Header row: icon + name + status */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-              isSynced ? "bg-success/10 text-success" : installed ? "bg-primary/10 text-primary" : "bg-base-300 text-base-content/30"
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+              isSynced
+                ? "bg-success/15 text-success"
+                : installed
+                ? "bg-primary/10 text-primary"
+                : "bg-base-300/50 text-base-content/25"
             }`}>
-              <CliIcon name={cli.icon} className="w-3.5 h-3.5" />
+              <CliIcon name={cli.icon} className="w-4 h-4" />
             </div>
-            <div>
-              <span className="font-semibold text-sm leading-tight">{cli.name}</span>
-              {version && (
-                <span className="text-[10px] opacity-40 ml-1.5">v{version}</span>
-              )}
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-sm leading-tight">{cli.name}</span>
+                {version && (
+                  <span className="text-[10px] opacity-35 font-mono">v{version}</span>
+                )}
+                {onCommunity && (
+                  <button
+                    className="opacity-30 hover:opacity-70 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); onCommunity(); }}
+                    title={cli.communityUrl}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
               {cli.descKey && (
-                <p className="text-[10px] opacity-50 leading-tight mt-0.5">{t(cli.descKey)}</p>
+                <p className="text-[10px] opacity-45 leading-tight mt-0.5 line-clamp-2">{t(cli.descKey)}</p>
               )}
             </div>
           </div>
 
           {/* Status badge */}
-          <div>
+          <div className="shrink-0">
             {loading ? (
               <span className="loading loading-dots loading-xs opacity-40" />
             ) : !installed ? (
-              <span className="badge badge-ghost badge-xs">{t("cli.notDetected")}</span>
+              <span className="badge badge-ghost badge-xs whitespace-nowrap">{t("cli.notDetected")}</span>
             ) : isSynced ? (
-              <span className="badge badge-success badge-xs gap-0.5">
+              <span className="badge badge-success badge-xs gap-0.5 whitespace-nowrap">
                 <Check className="w-2.5 h-2.5" />
                 {t("cli.synced")}
               </span>
             ) : (
-              <span className="badge badge-warning badge-xs">{t("cli.notSynced")}</span>
+              <span className="badge badge-warning badge-xs whitespace-nowrap">{t("cli.notSynced")}</span>
             )}
           </div>
         </div>
@@ -126,7 +145,7 @@ export function CliCard({
           <div className="flex items-center gap-2 mt-0.5">
             {canAutoInstall ? (
               <button
-                className="btn btn-primary btn-xs flex-1"
+                className="btn btn-primary btn-xs flex-1 shadow-sm"
                 onClick={onInstall}
                 disabled={installing}
               >
@@ -141,6 +160,14 @@ export function CliCard({
                 {t("install.download")}
               </button>
             )}
+            {/* Sync capability badge */}
+            <span className="text-[9px] opacity-35 shrink-0">
+              {cli.installType === "manual-config"
+                ? t("capability.manualOnly")
+                : cli.postSyncHintKey
+                ? t("capability.manualStep")
+                : t("capability.autoSync")}
+            </span>
           </div>
         )}
 
@@ -162,16 +189,16 @@ export function CliCard({
 
             {/* Synced models count */}
             {syncedCount != null && syncedCount > 0 && (
-              <div className="text-[10px] opacity-40">
+              <div className="text-[10px] opacity-35 font-medium">
                 {t("cli.syncedModels", { count: syncedCount })}
               </div>
             )}
 
             {/* Action buttons */}
             {cli.installType !== "manual-config" ? (
-              <div className="flex gap-1 mt-0.5">
+              <div className="flex gap-1.5 mt-0.5">
                 <button
-                  className={`btn btn-xs flex-1 ${isSynced ? "btn-outline btn-success" : "btn-primary"}`}
+                  className={`btn btn-xs flex-1 shadow-sm ${isSynced ? "btn-outline btn-success" : "btn-primary"}`}
                   onClick={onSync}
                   disabled={syncing}
                 >
@@ -179,7 +206,7 @@ export function CliCard({
                   {t("cli.sync")}
                 </button>
                 <button
-                  className="btn btn-ghost btn-xs"
+                  className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
                   onClick={onRestore}
                   disabled={restoring || !hasBackup}
                   title={t("cli.restore")}
@@ -188,32 +215,51 @@ export function CliCard({
                   {t("cli.restore")}
                 </button>
                 <button
-                  className="btn btn-ghost btn-xs"
+                  className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
                   onClick={onViewConfig}
                   title={t("cli.viewConfig")}
                 >
                   {t("cli.viewConfig")}
                 </button>
+                {onLaunch && cli.launchName && (
+                  <button
+                    className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+                    onClick={onLaunch}
+                    title={t("cli.openApp")}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="text-[10px] opacity-40 mt-0.5">
-                {t("install.manualConfigHint")}
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[10px] opacity-35 flex-1">{t("install.manualConfigHint")}</span>
+                {onLaunch && cli.launchName && (
+                  <button
+                    className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+                    onClick={onLaunch}
+                    title={t("cli.openApp")}
+                  >
+                    {t("cli.openApp")}
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             )}
 
             {/* Post-sync hint: tell user what they still need to do */}
-            {cli.postSyncHintKey && isSynced && (
-              <div className="flex items-start gap-1.5 mt-1 p-1.5 rounded bg-info/10 text-info">
+            {cli.postSyncHintKey && isSynced && cli.installType !== "manual-config" && (
+              <div className="flex items-start gap-1.5 mt-1.5 p-2 rounded-lg bg-info/8 text-info border border-info/10">
                 <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                <span className="text-[10px] leading-tight">{t(cli.postSyncHintKey)}</span>
+                <span className="text-[10px] leading-relaxed">{t(cli.postSyncHintKey)}</span>
               </div>
             )}
 
             {/* Manual-config hint always visible */}
             {cli.postSyncHintKey && cli.installType === "manual-config" && (
-              <div className="flex items-start gap-1.5 mt-1 p-1.5 rounded bg-warning/10 text-warning">
+              <div className="flex items-start gap-1.5 mt-1.5 p-2 rounded-lg bg-warning/8 text-warning border border-warning/10">
                 <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                <span className="text-[10px] leading-tight">{t(cli.postSyncHintKey)}</span>
+                <span className="text-[10px] leading-relaxed">{t(cli.postSyncHintKey)}</span>
               </div>
             )}
           </>

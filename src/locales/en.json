@@ -2,6 +2,7 @@
   "app": {
     "title": "Hajimi Switch",
     "subtitle": "One-click sync your API config to local AI tools",
+    "docs": "Docs",
     "brand": "Hajimi AI",
     "statusSynced": "{{count}} synced",
     "statusNone": "Not synced yet",
@@ -13,7 +14,7 @@
     "step1Hint": "Enter your Hajimi proxy address",
     "step2": "API Key",
     "step2Hint": "Paste the key from your subscription",
-    "step3": "One-click Sync",
+    "step3": "Default Model",
     "step3Hint": "Sync config to all installed AI tools"
   },
   "settings": {
@@ -49,30 +50,39 @@
     "viewConfig": "Config",
     "syncedModels": "{{count}} models synced",
     "enabled": "Included in Sync All",
-    "disabled": "Excluded from Sync All"
+    "disabled": "Excluded from Sync All",
+    "openApp": "Open"
   },
   "toolDesc": {
-    "claude": "Terminal AI coding assistant for developers",
-    "opencode": "Open-source terminal AI coding tool",
-    "codex": "OpenAI's official terminal coding assistant",
-    "gemini": "Google's official terminal AI assistant",
-    "openclaw": "Multi-platform AI assistant for WhatsApp / Telegram / Discord",
-    "droid": "Factory AI desktop coding assistant",
-    "cursor": "AI code editor — configure in app settings",
-    "chatbox": "Lightweight AI chat client",
-    "cherryStudio": "Multi-model AI chat tool",
-    "jan": "Local-first AI chat client",
-    "cline": "VS Code AI coding extension",
-    "rooCode": "VS Code AI coding extension (Roo fork)",
-    "kiloCode": "VS Code AI coding extension (Kilo fork)",
-    "sillytavern": "Roleplay / RP chat frontend",
-    "lobechat": "Open-source multi-model chat platform",
-    "boltai": "Native macOS AI assistant"
+    "claude": "Anthropic's official terminal coding assistant — write and fix code with AI in the command line",
+    "claudeVscode": "Claude Code extension for VS Code — use Claude AI to code directly in your editor",
+    "opencode": "Open-source terminal AI coding tool, a lightweight alternative to Claude Code",
+    "codex": "OpenAI's official terminal coding assistant — use GPT to write code from the command line",
+    "gemini": "Google's official terminal AI assistant — use Gemini from the command line",
+    "openclaw": "Multi-platform AI assistant — connect AI to WhatsApp, Telegram, Discord and more",
+    "droid": "Factory AI desktop coding assistant with a visual interface",
+    "cursor": "AI code editor based on VS Code with built-in AI coding assistance",
+    "chatbox": "Lightweight AI chat client — clean, simple, supports multiple models",
+    "cherryStudio": "Feature-rich multi-model AI chat tool with knowledge base and plugins",
+    "jan": "Privacy-focused AI chat client — supports local models and cloud APIs",
+    "cline": "VS Code AI coding extension — write code with AI directly in your editor",
+    "rooCode": "VS Code AI coding extension (Roo fork) — enhanced Cline",
+    "kiloCode": "VS Code AI coding extension (Kilo fork) — community-enhanced Cline",
+    "sillytavern": "Roleplay / RP chat frontend with rich character cards and scenario settings",
+    "lobechat": "Open-source multi-model chat platform with plugins and knowledge base",
+    "boltai": "Native macOS AI assistant with system-level quick access"
   },
   "toolHint": {
+    "claude": "After sync, the VS Code extension (Claude Code) is also configured automatically — no extra steps needed",
     "openclaw": "After sync, run 'openclaw onboard' in terminal to complete first-time setup (gateway & messaging channels)",
     "sillytavern": "After sync, select the configured API connection in SillyTavern's UI",
-    "manualConfig": "This tool cannot auto-configure — manually enter the API URL and key in app settings"
+    "cherryStudio": "After sync, switch to the \"Hajimi Proxy\" provider in Cherry Studio to use it",
+    "cursor": "Cursor does not support auto-configuration yet — please configure manually in Settings → Models",
+    "cline": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
+    "rooCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
+    "kiloCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
+    "lobechat": "Settings → Language Model → Add OpenAI-compatible provider → enter API URL and Key",
+    "boltai": "Settings → Models → Add Server → select OpenAI Compatible → enter URL and Key"
   },
   "capability": {
     "autoSync": "Auto-configurable",
@@ -136,15 +146,25 @@
     "quickStartDesc": "Claude Code is the recommended CLI tool. Click to install it automatically via npm."
   },
   "category": {
-    "cli": "CLI Tools",
-    "desktop": "Desktop Apps",
-    "extension": "VS Code Extensions"
+    "coding": "Coding",
+    "chat": "AI Chat",
+    "agent": "Agents",
+    "rp": "Roleplay"
+  },
+  "tabGuide": {
+    "codingDesc": "Write code, fix bugs, and build projects with AI. After syncing, these tools connect to your API automatically.",
+    "codingRecommend": "Recommended: start with Claude Code",
+    "chatDesc": "Chat freely with AI — Q&A, writing, brainstorming. After syncing, these clients connect to your API automatically.",
+    "chatRecommend": "Recommended: install Chatbox for a clean experience",
+    "agentDesc": "Connect AI to your favorite messaging platforms (WhatsApp, Telegram, Discord, etc.) and use it anywhere.",
+    "agentRecommend": "Install OpenClaw to get started",
+    "rpDesc": "Roleplay, storytelling, and immersive conversations. After syncing, import character cards and start chatting.",
+    "rpRecommend": "Install SillyTavern to get started"
   },
   "section": {
     "installed": "Installed",
-    "moreTools": "More Tools",
-    "showMore": "Show {{count}} more tools",
-    "showLess": "Collapse"
+    "manualConfig": "Manual config tools",
+    "manualConfigCount": "{{count}} tools"
   },
   "empty": {
     "title": "No AI tools detected",
@@ -156,5 +176,42 @@
     "sync_all": "Sync All",
     "restore": "Restore",
     "install": "Install"
+  },
+  "account": {
+    "modeManual": "Manual Input",
+    "modeAccount": "Account Login",
+    "platformUrlHint": "Enter platform URL",
+    "username": "Username",
+    "password": "Password",
+    "login": "Login",
+    "loggingIn": "Logging in...",
+    "loginSuccess": "Welcome back, {{name}}",
+    "logoutSuccess": "Logged out",
+    "noAccount": "No account? Register now",
+    "noTokens": "No API keys available",
+    "selectKey": "Select",
+    "selected": "Selected",
+    "tokenSelected": "Selected key \"{{name}}\"",
+    "configReady": "Config ready — you can now sync to the AI tools below",
+    "used": "Used",
+    "remaining": "Remaining",
+    "expires": "Expires",
+    "neverExpire": "Never",
+    "expired": "Expired",
+    "unlimitedQuota": "Unlimited quota",
+    "statusActive": "Active",
+    "statusDisabled": "Disabled",
+    "statusExpired": "Expired",
+    "statusExhausted": "Exhausted",
+    "sessionExpired": "Session expired, please login again",
+    "errConnectTimeout": "Connection timed out, check the platform URL",
+    "errConnectFailed": "Cannot connect to platform, check the URL",
+    "errWrongCredentials": "Incorrect username or password",
+    "errAccountDisabled": "This account has been disabled, contact admin",
+    "errRequire2FA": "This account has 2FA enabled — please login on the web and disable 2FA first",
+    "errLoginFailed": "Login failed, please try again",
+    "errNoSessionCookie": "Server did not return session credentials, check platform version",
+    "errInvalidResponse": "Server returned unexpected data",
+    "errInternalError": "Internal error, please try again"
   }
 }

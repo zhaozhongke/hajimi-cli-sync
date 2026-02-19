@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::cli_sync;
 use crate::utils;
 
 const BACKUP_SUFFIX: &str = ".antigravity.bak";
@@ -9,6 +10,7 @@ const BACKUP_SUFFIX: &str = ".antigravity.bak";
 /// Extra AI client tools beyond the core 5 (Claude, Codex, Gemini, OpenCode, Droid).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtraClient {
+    ClaudeVSCode,
     Chatbox,
     CherryStudio,
     Jan,
@@ -24,6 +26,7 @@ pub enum ExtraClient {
 impl ExtraClient {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::ClaudeVSCode => "claude-vscode",
             Self::Chatbox => "chatbox",
             Self::CherryStudio => "cherry-studio",
             Self::Jan => "jan",
@@ -39,6 +42,7 @@ impl ExtraClient {
 
     pub fn display_name(&self) -> &'static str {
         match self {
+            Self::ClaudeVSCode => "Claude Code (VS Code)",
             Self::Chatbox => "Chatbox",
             Self::CherryStudio => "Cherry Studio",
             Self::Jan => "Jan",
@@ -54,6 +58,7 @@ impl ExtraClient {
 
     pub fn all() -> &'static [ExtraClient] {
         &[
+            Self::ClaudeVSCode,
             Self::Chatbox,
             Self::CherryStudio,
             Self::Jan,
@@ -69,6 +74,7 @@ impl ExtraClient {
 
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
+            "claude-vscode" => Some(Self::ClaudeVSCode),
             "chatbox" => Some(Self::Chatbox),
             "cherry-studio" => Some(Self::CherryStudio),
             "jan" => Some(Self::Jan),
@@ -94,6 +100,7 @@ impl ExtraClient {
 
     pub fn config_files_display(&self) -> Vec<String> {
         match self {
+            Self::ClaudeVSCode => vec!["settings.json".to_string()],
             Self::Chatbox => vec!["config.json".to_string()],
             Self::CherryStudio => vec!["config.json".to_string()],
             Self::Jan => vec!["settings.json".to_string()],
@@ -202,6 +209,10 @@ fn sillytavern_secrets_path() -> Option<PathBuf> {
 /// Get the config file path for a client (the primary file we sync to).
 fn config_path_for(client: &ExtraClient) -> Option<PathBuf> {
     match client {
+        ExtraClient::ClaudeVSCode => {
+            // Shares config with Claude Code CLI: ~/.claude/settings.json
+            home_dir().map(|h| h.join(".claude").join("settings.json"))
+        }
         ExtraClient::Chatbox => chatbox_config_path(),
         ExtraClient::CherryStudio => cherry_config_path(),
         ExtraClient::Jan => jan_config_path(),
@@ -263,6 +274,17 @@ fn is_app_installed(_app_name: &str) -> bool {
 /// Detect whether a client is installed. Returns (installed, version).
 pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
     match client {
+        ExtraClient::ClaudeVSCode => {
+            let installed = is_vscode_extension_installed("anthropic.claude-code-");
+            (
+                installed,
+                if installed {
+                    Some("extension".to_string())
+                } else {
+                    None
+                },
+            )
+        }
         ExtraClient::Chatbox => {
             let installed = is_app_installed("Chatbox")
                 || chatbox_config_path()
@@ -423,6 +445,11 @@ pub fn get_extra_sync_status(
     };
 
     match client {
+        ExtraClient::ClaudeVSCode => {
+            // Reuse Claude CLI sync status check
+            let cli_app = cli_sync::CliApp::Claude;
+            cli_sync::get_sync_status(&cli_app, proxy_url)
+        }
         ExtraClient::Chatbox => check_chatbox_synced(&content, proxy_url, has_backup),
         ExtraClient::CherryStudio => check_cherry_synced(&content, proxy_url, has_backup),
         ExtraClient::Jan => check_jan_synced(&content, proxy_url, has_backup),
@@ -565,6 +592,11 @@ pub fn sync_extra_config(
     model: Option<&str>,
 ) -> Result<(), String> {
     match client {
+        ExtraClient::ClaudeVSCode => {
+            // Reuse Claude CLI sync logic — writes to ~/.claude/settings.json
+            let cli_app = cli_sync::CliApp::Claude;
+            cli_sync::sync_config(&cli_app, proxy_url, api_key, model)
+        }
         ExtraClient::Chatbox => sync_chatbox(proxy_url, api_key, model),
         ExtraClient::CherryStudio => sync_cherry(proxy_url, api_key, model),
         ExtraClient::Jan => sync_jan(proxy_url, api_key, model),
@@ -788,6 +820,12 @@ fn sync_vscode_env(
 // ---------------------------------------------------------------------------
 
 pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
+    // ClaudeVSCode shares config with Claude CLI — delegate to cli_sync
+    if matches!(client, ExtraClient::ClaudeVSCode) {
+        let cli_app = cli_sync::CliApp::Claude;
+        return cli_sync::restore_config(&cli_app);
+    }
+
     let config_path = config_path_for(client)
         .ok_or_else(|| format!("{} does not use file-based config", client.display_name()))?;
 
@@ -1094,7 +1132,7 @@ mod tests {
 
     #[test]
     fn test_all_clients_count() {
-        assert_eq!(ExtraClient::all().len(), 10);
+        assert_eq!(ExtraClient::all().len(), 11);
     }
 
     #[test]
@@ -1109,7 +1147,7 @@ mod tests {
         );
         assert_eq!(
             ExtraClient::Cline.config_files_display(),
-            vec!["VS Code settings.json"]
+            vec!["(extension settings)"]
         );
     }
 

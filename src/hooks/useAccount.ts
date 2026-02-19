@@ -16,16 +16,17 @@ export function useAccount() {
   const [tokens, setTokens] = useState<ApiTokenInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [platformError, setPlatformError] = useState<string | null>(null);
 
   const checkPlatform = useCallback(async (baseUrl: string) => {
-    setError(null);
+    setPlatformError(null);
     try {
       const info = await invoke<PlatformInfo>("check_platform", { baseUrl });
       setPlatformInfo(info);
       return info;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
+      setPlatformError(msg);
       setPlatformInfo(null);
       return null;
     }
@@ -41,10 +42,13 @@ export function useAccount() {
         password,
       });
       setAccountInfo(info);
-      // Persist session to localStorage
+      // Persist session to localStorage — including the cookie itself
       localStorage.setItem(SESSION_KEYS.url, baseUrl);
       localStorage.setItem(SESSION_KEYS.userId, String(info.user_id));
       localStorage.setItem(SESSION_KEYS.username, info.username);
+      if (info.session_cookie) {
+        localStorage.setItem(SESSION_KEYS.session, info.session_cookie);
+      }
       return info;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -108,10 +112,6 @@ export function useAccount() {
     }
   }, []);
 
-  const saveSessionCookie = useCallback((cookie: string) => {
-    localStorage.setItem(SESSION_KEYS.session, cookie);
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await invoke("account_logout");
@@ -121,6 +121,8 @@ export function useAccount() {
     setAccountInfo(null);
     setTokens([]);
     setPlatformInfo(null);
+    setError(null);
+    setPlatformError(null);
     clearSession();
   }, []);
 
@@ -130,11 +132,11 @@ export function useAccount() {
     tokens,
     loading,
     error,
+    platformError,
     checkPlatform,
     login,
     fetchTokens,
     checkSession,
-    saveSessionCookie,
     logout,
     setError,
   };

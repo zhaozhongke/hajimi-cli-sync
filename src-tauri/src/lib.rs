@@ -482,6 +482,31 @@ async fn open_external_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn launch_app(name: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .args(["-a", &name])
+            .spawn()
+            .map_err(|e| format!("Failed to launch {}: {}", name, e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &name])
+            .spawn()
+            .map_err(|e| format!("Failed to launch {}: {}", name, e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new(&name)
+            .spawn()
+            .map_err(|e| format!("Failed to launch {}: {}", name, e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn open_config_folder(app: String) -> Result<(), String> {
     let folder = get_config_folder_path(&app)?;
     let folder_str = folder.to_string_lossy().to_string();
@@ -572,6 +597,7 @@ pub fn run() {
             auto_installer::install_cli_tool,
             open_external_url,
             open_config_folder,
+            launch_app,
             account::check_platform,
             account::account_login,
             account::account_get_tokens,

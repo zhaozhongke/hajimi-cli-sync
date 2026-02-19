@@ -2,6 +2,7 @@
   "app": {
     "title": "Hajimi Switch",
     "subtitle": "哈基米 AI 一键同步工具",
+    "docs": "使用文档",
     "brand": "哈基米 AI",
     "statusSynced": "已同步 {{count}} 个",
     "statusNone": "尚未同步",
@@ -13,7 +14,7 @@
     "step1Hint": "输入哈基米代理地址",
     "step2": "API 密钥",
     "step2Hint": "粘贴订阅获得的密钥",
-    "step3": "一键同步",
+    "step3": "默认模型",
     "step3Hint": "将配置同步到所有已安装的 AI 工具"
   },
   "settings": {
@@ -49,30 +50,39 @@
     "viewConfig": "配置",
     "syncedModels": "已同步 {{count}} 个模型",
     "enabled": "参与全部同步",
-    "disabled": "不参与全部同步"
+    "disabled": "不参与全部同步",
+    "openApp": "打开"
   },
   "toolDesc": {
-    "claude": "终端 AI 编程助手，适合程序员",
-    "opencode": "开源终端 AI 编程工具",
-    "codex": "OpenAI 官方终端编程助手",
-    "gemini": "Google 官方终端 AI 助手",
-    "openclaw": "多平台 AI 助手，接入 WhatsApp / Telegram / Discord",
-    "droid": "Factory AI 桌面编程助手",
-    "cursor": "AI 代码编辑器，需在应用内配置",
-    "chatbox": "轻量 AI 对话客户端",
-    "cherryStudio": "多模型 AI 对话工具",
-    "jan": "本地优先的 AI 对话客户端",
-    "cline": "VS Code AI 编程插件",
-    "rooCode": "VS Code AI 编程插件（Roo 分支）",
-    "kiloCode": "VS Code AI 编程插件（Kilo 分支）",
-    "sillytavern": "角色扮演 / RP 对话前端",
-    "lobechat": "开源多模型对话平台",
-    "boltai": "macOS 原生 AI 助手"
+    "claude": "Anthropic 官方终端编程助手，直接在命令行中用 AI 写代码、改 Bug",
+    "claudeVscode": "VS Code 中的 Claude Code 插件，在编辑器内直接使用 Claude AI 编程",
+    "opencode": "开源终端 AI 编程工具，类似 Claude Code 的轻量替代",
+    "codex": "OpenAI 官方终端编程助手，在命令行中调用 GPT 写代码",
+    "gemini": "Google 官方终端 AI 助手，在命令行中调用 Gemini",
+    "openclaw": "多平台 AI 助手，一键接入 WhatsApp / Telegram / Discord 等聊天平台",
+    "droid": "Factory AI 桌面编程助手，可视化界面操作 AI 编程",
+    "cursor": "AI 代码编辑器，基于 VS Code，内置 AI 辅助编程",
+    "chatbox": "轻量级 AI 对话客户端，简洁好用，支持多模型切换",
+    "cherryStudio": "功能丰富的多模型 AI 对话工具，支持知识库和插件",
+    "jan": "注重隐私的 AI 对话客户端，支持本地模型和云端 API",
+    "cline": "VS Code AI 编程插件，在编辑器内直接用 AI 写代码",
+    "rooCode": "VS Code AI 编程插件（Roo 分支），增强版 Cline",
+    "kiloCode": "VS Code AI 编程插件（Kilo 分支），Cline 的社区增强版",
+    "sillytavern": "角色扮演 / RP 对话前端，支持丰富的角色卡和场景设定",
+    "lobechat": "开源多模型对话平台，支持插件和知识库",
+    "boltai": "macOS 原生 AI 助手，系统级快捷调用"
   },
   "toolHint": {
+    "claude": "同步后 VS Code 插件（Claude Code extension）也会自动生效，无需额外配置",
     "openclaw": "同步完成后，还需在终端运行 openclaw onboard 完成首次设置（选择网关、连接消息渠道）",
     "sillytavern": "同步完成后，需在 SillyTavern 界面中选择已配置的 API 连接",
-    "manualConfig": "本工具无法自动写入配置，请在应用设置中手动填写 API 地址和密钥"
+    "cherryStudio": "同步完成后，需在 Cherry Studio 中切换到「Hajimi Proxy」渠道才能生效",
+    "cursor": "Cursor 暂不支持自动配置，请自行在 Settings → Models 中研究配置方式",
+    "cline": "扩展侧边栏 → 设置 → API Provider 选 \"OpenAI Compatible\" → 填入 Base URL 和 API Key",
+    "rooCode": "扩展侧边栏 → 设置 → API Provider 选 \"OpenAI Compatible\" → 填入 Base URL 和 API Key",
+    "kiloCode": "扩展侧边栏 → 设置 → API Provider 选 \"OpenAI Compatible\" → 填入 Base URL 和 API Key",
+    "lobechat": "设置 → 语言模型 → 添加 OpenAI 兼容服务商 → 填入 API 地址和密钥",
+    "boltai": "Settings → Models → Add Server → 选择 OpenAI Compatible → 填入地址和密钥"
   },
   "capability": {
     "autoSync": "可自动配置",
@@ -136,15 +146,25 @@
     "quickStartDesc": "Claude Code 是推荐的 CLI 工具。点击即可通过 npm 自动安装。"
   },
   "category": {
-    "cli": "命令行工具",
-    "desktop": "桌面应用",
-    "extension": "VS Code 扩展"
+    "coding": "编程开发",
+    "chat": "AI 对话",
+    "agent": "多平台助手",
+    "rp": "角色扮演"
+  },
+  "tabGuide": {
+    "codingDesc": "用 AI 写代码、改 Bug、做项目。同步后，这些工具会自动连上你的 API，开箱即用。",
+    "codingRecommend": "推荐新手从 Claude Code 开始",
+    "chatDesc": "和 AI 自由聊天、问答、写作。同步后，这些客户端会自动连上你的 API。",
+    "chatRecommend": "推荐安装 Chatbox，简洁好用",
+    "agentDesc": "把 AI 接入你常用的聊天平台（WhatsApp、Telegram、Discord 等），随时随地使用。",
+    "agentRecommend": "安装 OpenClaw 即可一键接入",
+    "rpDesc": "角色扮演、故事创作、沉浸式对话。同步后自动连接 API，导入角色卡即可开始。",
+    "rpRecommend": "安装 SillyTavern 开始体验"
   },
   "section": {
     "installed": "已安装",
-    "moreTools": "更多工具",
-    "showMore": "展开 {{count}} 个工具",
-    "showLess": "收起"
+    "manualConfig": "需手动配置的工具",
+    "manualConfigCount": "{{count}} 个工具"
   },
   "empty": {
     "title": "未检测到 AI 工具",
@@ -156,5 +176,42 @@
     "sync_all": "全部同步",
     "restore": "恢复",
     "install": "安装"
+  },
+  "account": {
+    "modeManual": "手动输入",
+    "modeAccount": "账号登录",
+    "platformUrlHint": "输入平台地址",
+    "username": "用户名",
+    "password": "密码",
+    "login": "登录",
+    "loggingIn": "登录中...",
+    "loginSuccess": "欢迎回来，{{name}}",
+    "logoutSuccess": "已退出登录",
+    "noAccount": "还没有账号？前往注册",
+    "noTokens": "暂无可用的 API 密钥",
+    "selectKey": "选择",
+    "selected": "已选择",
+    "tokenSelected": "已选择密钥「{{name}}」",
+    "configReady": "配置已就绪，可以同步到下方的 AI 工具了",
+    "used": "已用",
+    "remaining": "剩余",
+    "expires": "到期",
+    "neverExpire": "永不过期",
+    "expired": "已过期",
+    "unlimitedQuota": "无限额度",
+    "statusActive": "启用",
+    "statusDisabled": "已禁用",
+    "statusExpired": "已过期",
+    "statusExhausted": "已耗尽",
+    "sessionExpired": "登录已过期，请重新登录",
+    "errConnectTimeout": "连接超时，请检查平台地址",
+    "errConnectFailed": "无法连接到平台，请检查地址是否正确",
+    "errWrongCredentials": "用户名或密码错误",
+    "errAccountDisabled": "该账号已被禁用，请联系管理员",
+    "errRequire2FA": "该账号启用了两步验证，请先在网页端登录并关闭两步验证",
+    "errLoginFailed": "登录失败，请重试",
+    "errNoSessionCookie": "服务器未返回登录凭证，请检查平台版本",
+    "errInvalidResponse": "服务器返回了异常数据",
+    "errInternalError": "内部错误，请重试"
   }
 }

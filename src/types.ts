@@ -26,7 +26,7 @@ export interface AppConfig {
 }
 
 export type InstallType = "npm" | "vscode" | "desktop" | "manual" | "manual-config";
-export type CliCategory = "cli" | "desktop" | "extension";
+export type CliCategory = "coding" | "chat" | "agent" | "rp";
 
 export interface CliInfo {
   id: string;
@@ -40,6 +40,12 @@ export interface CliInfo {
   descKey?: string;
   /** i18n key for post-sync next-step hint, e.g. "toolHint.openclaw" */
   postSyncHintKey?: string;
+  /** macOS app name for launching via `open -a`, e.g. "Cherry Studio" */
+  launchName?: string;
+  /** Deep link URL template for one-click provider import, e.g. "cherrystudio://providers/api-keys?v=1&data={config}" */
+  deepLinkTemplate?: string;
+  /** Web-browsable community/marketplace URL for external link button */
+  communityUrl?: string;
 }
 
 // ── Account login types ──
@@ -54,6 +60,7 @@ export interface AccountInfo {
   user_id: number;
   username: string;
   display_name: string;
+  session_cookie: string | null;
 }
 
 export interface ApiTokenInfo {
@@ -72,21 +79,22 @@ export interface ApiTokenInfo {
 export type AuthMode = "manual" | "account";
 
 export const CLI_LIST: CliInfo[] = [
-  { id: "claude", name: "Claude Code", icon: "terminal", color: "border-purple-400", installType: "npm", category: "cli", descKey: "toolDesc.claude" },
-  { id: "opencode", name: "OpenCode", icon: "file-code", color: "border-orange-400", installType: "manual", category: "cli", downloadUrl: "https://github.com/anomalyco/opencode", descKey: "toolDesc.opencode" },
-  { id: "codex", name: "Codex AI", icon: "code", color: "border-blue-400", installType: "npm", category: "cli", descKey: "toolDesc.codex" },
-  { id: "gemini", name: "Gemini CLI", icon: "sparkles", color: "border-green-400", installType: "npm", category: "cli", descKey: "toolDesc.gemini" },
-  { id: "openclaw", name: "OpenClaw", icon: "waves", color: "border-rose-400", installType: "npm", category: "cli", downloadUrl: "https://docs.openclaw.ai", descKey: "toolDesc.openclaw", postSyncHintKey: "toolHint.openclaw" },
-  { id: "droid", name: "Droid", icon: "bot", color: "border-red-400", installType: "desktop", category: "desktop", downloadUrl: "https://factory.ai", descKey: "toolDesc.droid" },
-  { id: "cursor", name: "Cursor", icon: "mouse-pointer", color: "border-cyan-400", installType: "manual-config", category: "desktop", downloadUrl: "https://cursor.com/downloads", descKey: "toolDesc.cursor", postSyncHintKey: "toolHint.manualConfig" },
-  { id: "chatbox", name: "Chatbox", icon: "message-square", color: "border-sky-400", installType: "desktop", category: "desktop", downloadUrl: "https://chatboxai.app", descKey: "toolDesc.chatbox" },
-  { id: "cherry-studio", name: "Cherry Studio", icon: "cherry", color: "border-pink-400", installType: "desktop", category: "desktop", downloadUrl: "https://cherry-ai.com", descKey: "toolDesc.cherryStudio" },
-  { id: "jan", name: "Jan", icon: "cpu", color: "border-indigo-400", installType: "desktop", category: "desktop", downloadUrl: "https://jan.ai/download", descKey: "toolDesc.jan" },
-  { id: "cline", name: "Cline", icon: "file-text", color: "border-teal-400", installType: "manual-config", category: "extension", descKey: "toolDesc.cline", postSyncHintKey: "toolHint.manualConfig" },
-  { id: "roo-code", name: "Roo Code", icon: "rabbit", color: "border-amber-400", installType: "manual-config", category: "extension", descKey: "toolDesc.rooCode", postSyncHintKey: "toolHint.manualConfig" },
-  { id: "kilo-code", name: "Kilo Code", icon: "ruler", color: "border-lime-400", installType: "manual-config", category: "extension", descKey: "toolDesc.kiloCode", postSyncHintKey: "toolHint.manualConfig" },
-  { id: "sillytavern", name: "SillyTavern", icon: "beer", color: "border-yellow-400", installType: "manual", category: "desktop", downloadUrl: "https://docs.sillytavern.app/installation/", descKey: "toolDesc.sillytavern", postSyncHintKey: "toolHint.sillytavern" },
-  { id: "lobechat", name: "LobeChat", icon: "brain", color: "border-violet-400", installType: "desktop", category: "desktop", downloadUrl: "https://lobehub.com/download", descKey: "toolDesc.lobechat" },
-  { id: "boltai", name: "BoltAI", icon: "zap", color: "border-slate-400", installType: "desktop", category: "desktop", downloadUrl: "https://boltai.com", descKey: "toolDesc.boltai" },
+  { id: "claude", name: "Claude Code", icon: "terminal", color: "border-purple-400", installType: "npm", category: "coding", descKey: "toolDesc.claude", postSyncHintKey: "toolHint.claude" },
+  { id: "claude-vscode", name: "Claude Code (VS Code)", icon: "file-code", color: "border-purple-300", installType: "vscode", category: "coding", descKey: "toolDesc.claudeVscode", communityUrl: "https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code" },
+  { id: "opencode", name: "OpenCode", icon: "file-code", color: "border-orange-400", installType: "manual", category: "coding", downloadUrl: "https://github.com/anomalyco/opencode", descKey: "toolDesc.opencode" },
+  { id: "codex", name: "Codex AI", icon: "code", color: "border-blue-400", installType: "npm", category: "coding", descKey: "toolDesc.codex" },
+  { id: "gemini", name: "Gemini CLI", icon: "sparkles", color: "border-green-400", installType: "npm", category: "coding", descKey: "toolDesc.gemini" },
+  { id: "droid", name: "Droid", icon: "bot", color: "border-red-400", installType: "desktop", category: "coding", downloadUrl: "https://factory.ai", descKey: "toolDesc.droid", launchName: "Droid" },
+  { id: "cline", name: "Cline", icon: "file-text", color: "border-teal-400", installType: "manual-config", category: "coding", downloadUrl: "vscode:extension/saoudrizwan.claude-dev", descKey: "toolDesc.cline", postSyncHintKey: "toolHint.cline", communityUrl: "https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev" },
+  { id: "roo-code", name: "Roo Code", icon: "rabbit", color: "border-amber-400", installType: "manual-config", category: "coding", downloadUrl: "vscode:extension/rooveterinaryinc.roo-cline", descKey: "toolDesc.rooCode", postSyncHintKey: "toolHint.rooCode", communityUrl: "https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline" },
+  { id: "kilo-code", name: "Kilo Code", icon: "ruler", color: "border-lime-400", installType: "manual-config", category: "coding", downloadUrl: "vscode:extension/kilocode.kilo-code", descKey: "toolDesc.kiloCode", postSyncHintKey: "toolHint.kiloCode", communityUrl: "https://marketplace.visualstudio.com/items?itemName=kilocode.kilo-code" },
+  { id: "cursor", name: "Cursor", icon: "mouse-pointer", color: "border-cyan-400", installType: "manual-config", category: "coding", downloadUrl: "https://cursor.com/downloads", descKey: "toolDesc.cursor", postSyncHintKey: "toolHint.cursor", launchName: "Cursor" },
+  { id: "chatbox", name: "Chatbox", icon: "message-square", color: "border-sky-400", installType: "desktop", category: "chat", downloadUrl: "https://chatboxai.app", descKey: "toolDesc.chatbox", launchName: "Chatbox" },
+  { id: "cherry-studio", name: "Cherry Studio", icon: "cherry", color: "border-pink-400", installType: "desktop", category: "chat", downloadUrl: "https://cherry-ai.com", descKey: "toolDesc.cherryStudio", launchName: "Cherry Studio", deepLinkTemplate: "cherrystudio://providers/api-keys?v=1&data={config}" },
+  { id: "jan", name: "Jan", icon: "cpu", color: "border-indigo-400", installType: "desktop", category: "chat", downloadUrl: "https://jan.ai/download", descKey: "toolDesc.jan", launchName: "Jan" },
+  { id: "lobechat", name: "LobeChat", icon: "brain", color: "border-violet-400", installType: "manual-config", category: "chat", downloadUrl: "https://lobehub.com/zh", descKey: "toolDesc.lobechat", postSyncHintKey: "toolHint.lobechat", launchName: "LobeChat" },
+  { id: "boltai", name: "BoltAI", icon: "zap", color: "border-slate-400", installType: "manual-config", category: "chat", downloadUrl: "https://boltai.com", descKey: "toolDesc.boltai", postSyncHintKey: "toolHint.boltai", launchName: "BoltAI" },
+  { id: "openclaw", name: "OpenClaw", icon: "waves", color: "border-rose-400", installType: "npm", category: "agent", downloadUrl: "https://docs.openclaw.ai", descKey: "toolDesc.openclaw", postSyncHintKey: "toolHint.openclaw" },
+  { id: "sillytavern", name: "SillyTavern", icon: "beer", color: "border-yellow-400", installType: "manual", category: "rp", downloadUrl: "https://docs.sillytavern.app/installation/", descKey: "toolDesc.sillytavern", postSyncHintKey: "toolHint.sillytavern" },
 ];
 

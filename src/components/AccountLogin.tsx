@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { LogIn, RefreshCw, LogOut, ExternalLink, Check, AlertCircle } from "lucide-react";
+import { LogIn, RefreshCw, LogOut, ExternalLink, Check, AlertCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAccount } from "../hooks/useAccount";
 import { ModelSelector } from "./ModelSelector";
@@ -14,6 +14,24 @@ interface AccountLoginProps {
   apiModels: string[];
   modelsLoading: boolean;
   modelsError: string | null;
+}
+
+/** Map Rust error codes to i18n keys */
+function mapErrorCode(code: string): string {
+  const map: Record<string, string> = {
+    CONNECT_TIMEOUT: "account.errConnectTimeout",
+    CONNECT_FAILED: "account.errConnectFailed",
+    WRONG_CREDENTIALS: "account.errWrongCredentials",
+    ACCOUNT_DISABLED: "account.errAccountDisabled",
+    REQUIRE_2FA: "account.errRequire2FA",
+    LOGIN_FAILED: "account.errLoginFailed",
+    NO_SESSION_COOKIE: "account.errNoSessionCookie",
+    SESSION_EXPIRED: "account.sessionExpired",
+    INVALID_RESPONSE: "account.errInvalidResponse",
+    INTERNAL_ERROR: "account.errInternalError",
+    NOT_LOGGED_IN: "account.sessionExpired",
+  };
+  return map[code] || "";
 }
 
 export function AccountLogin({
@@ -31,6 +49,7 @@ export function AccountLogin({
     tokens,
     loading,
     error,
+    platformError,
     checkPlatform,
     login,
     fetchTokens,
@@ -46,6 +65,7 @@ export function AccountLogin({
   const [password, setPassword] = useState("");
   const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [configApplied, setConfigApplied] = useState(false);
 
   // Check platform info when URL changes (debounced)
   useEffect(() => {
@@ -62,7 +82,6 @@ export function AccountLogin({
       const info = await checkSession();
       setSessionChecked(true);
       if (info) {
-        // Session is valid, fetch tokens
         fetchTokens();
       }
     };
@@ -83,14 +102,15 @@ export function AccountLogin({
   const handleLogout = async () => {
     await logout();
     setSelectedTokenId(null);
+    setConfigApplied(false);
     toast.success(t("account.logoutSuccess"));
   };
 
   const handleSelectToken = (token: ApiTokenInfo) => {
     setSelectedTokenId(token.id);
-    // Apply to parent: set apiKey and url
+    setConfigApplied(true);
     onConfigReady(platformUrl, token.key);
-    toast.success(t("account.tokenSelected", { name: token.name }));
+    toast.success(t("account.tokenSelected", { name: token.name || `Token #${token.id}` }));
   };
 
   const handleRegister = () => {
@@ -107,8 +127,7 @@ export function AccountLogin({
   const formatExpiry = (ts: number): string => {
     if (ts === -1) return t("account.neverExpire");
     const date = new Date(ts * 1000);
-    const now = new Date();
-    if (date < now) return t("account.expired");
+    if (date < new Date()) return t("account.expired");
     return date.toLocaleDateString();
   };
 
@@ -132,19 +151,29 @@ export function AccountLogin({
     return true;
   };
 
-  // Sort: usable first, then by remain_quota desc
   const sortedTokens = useMemo(() => {
     return [...tokens].sort((a, b) => {
+      // Selected token always first
+      if (selectedTokenId !== null) {
+        if (a.id === selectedTokenId) return -1;
+        if (b.id === selectedTokenId) return 1;
+      }
+      // Then usable tokens
       const aUsable = isTokenUsable(a) ? 1 : 0;
       const bUsable = isTokenUsable(b) ? 1 : 0;
       if (aUsable !== bUsable) return bUsable - aUsable;
       return b.remain_quota - a.remain_quota;
     });
-  }, [tokens]);
+  }, [tokens, selectedTokenId]);
 
-  // Not logged in — show login form
+  /** Render a translated error, falling back to raw string */
+  const renderError = (code: string) => {
+    const key = mapErrorCode(code);
+    return key ? t(key) : code;
+  };
+
+  // ── Not logged in: show login form ──
   if (!accountInfo) {
-    // Don't show anything until session check is done
     if (!sessionChecked) {
       return (
         <div className="flex items-center justify-center py-6">
@@ -160,7 +189,7 @@ export function AccountLogin({
           <div className="flex items-center gap-2">
             <input
               type="text"
-              className="input input-bordered input-sm w-full"
+              className={`input input-bordered input-sm w-full ${platformError ? "input-error" : ""}`}
               value={platformUrl}
               onChange={(e) => setPlatformUrl(e.target.value)}
               placeholder={t("account.platformUrlHint")}
@@ -171,6 +200,13 @@ export function AccountLogin({
               </span>
             )}
           </div>
+          {/* Issue #4: Platform URL error shown inline near the URL field */}
+          {platformError && (
+            <div className="flex items-center gap-1 mt-1 text-warning text-xs">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              <span>{renderError(platformError)}</span>
+            </div>
+          )}
         </div>
 
         {/* Login form */}
@@ -195,11 +231,11 @@ export function AccountLogin({
           />
         </div>
 
-        {/* Error */}
+        {/* Issue #3: Login error with i18n mapping */}
         {error && (
           <div className="flex items-center gap-1.5 text-error text-xs">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>{error}</span>
+            <span>{renderError(error)}</span>
           </div>
         )}
 
@@ -217,21 +253,23 @@ export function AccountLogin({
           {loading ? t("account.loggingIn") : t("account.login")}
         </button>
 
-        {/* Register link */}
-        <div className="text-center">
-          <button
-            className="btn btn-ghost btn-xs gap-1 opacity-60"
-            onClick={handleRegister}
-          >
-            {t("account.noAccount")}
-            <ExternalLink className="w-3 h-3" />
-          </button>
-        </div>
+        {/* Issue #8: Only show register link if platform allows registration */}
+        {(platformInfo?.register_enabled ?? true) && (
+          <div className="text-center">
+            <button
+              className="btn btn-ghost btn-xs gap-1 opacity-60"
+              onClick={handleRegister}
+            >
+              {t("account.noAccount")}
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Logged in — show token list
+  // ── Logged in: show token list ──
   return (
     <div className="space-y-3">
       {/* User info bar */}
@@ -275,13 +313,12 @@ export function AccountLogin({
         </div>
       )}
 
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      <div className="space-y-2 max-h-[60vh] overflow-y-auto">
         {sortedTokens.map((token) => {
           const usable = isTokenUsable(token);
           const badge = getStatusBadge(token);
           const isSelected = selectedTokenId === token.id;
           const totalQuota = token.used_quota + token.remain_quota;
-          const usagePercent = totalQuota > 0 ? (token.used_quota / totalQuota) * 100 : 0;
 
           return (
             <div
@@ -290,15 +327,19 @@ export function AccountLogin({
                 isSelected
                   ? "border-primary shadow-sm"
                   : usable
-                  ? "border-base-300 hover:border-base-content/20"
+                  ? "border-base-300 hover:border-base-content/20 cursor-pointer"
                   : "border-base-300 opacity-50"
               }`}
+              onClick={() => usable && handleSelectToken(token)}
             >
               <div className="card-body p-3 gap-1.5">
                 {/* Name + status */}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium truncate">{token.name || `Token #${token.id}`}</span>
-                  <span className={`badge badge-xs ${badge.cls}`}>{badge.text}</span>
+                  <div className="flex items-center gap-1.5">
+                    {isSelected && <Check className="w-3 h-3 text-primary" />}
+                    <span className={`badge badge-xs ${badge.cls}`}>{badge.text}</span>
+                  </div>
                 </div>
 
                 {/* Key preview */}
@@ -320,33 +361,22 @@ export function AccountLogin({
                       </span>
                     </div>
                     <progress
-                      className={`progress w-full h-1.5 ${usagePercent > 90 ? "progress-error" : "progress-primary"}`}
+                      className={`progress w-full h-1.5 ${
+                        totalQuota > 0 && (token.remain_quota / totalQuota) < 0.1
+                          ? "progress-error"
+                          : "progress-primary"
+                      }`}
                       value={token.remain_quota}
                       max={totalQuota || 1}
                     />
                   </div>
                 )}
 
-                {/* Expiry + select button */}
+                {/* Expiry */}
                 <div className="flex items-center justify-between mt-0.5">
                   <span className="text-xs opacity-40">
                     {t("account.expires")}: {formatExpiry(token.expired_time)}
                   </span>
-                  {usable && (
-                    <button
-                      className={`btn btn-xs gap-1 ${isSelected ? "btn-primary" : "btn-ghost"}`}
-                      onClick={() => handleSelectToken(token)}
-                    >
-                      {isSelected ? (
-                        <>
-                          <Check className="w-3 h-3" />
-                          {t("account.selected")}
-                        </>
-                      ) : (
-                        t("account.selectKey")
-                      )}
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -354,25 +384,31 @@ export function AccountLogin({
         })}
       </div>
 
-      {/* Model selector (same as manual mode step 3) */}
-      {selectedTokenId && (
-        <div className="form-control">
-          <ModelSelector
-            value={defaultModel}
-            onChange={onModelChange}
-            apiModels={apiModels}
-            modelsLoading={modelsLoading}
-            modelsError={modelsError}
-            size="sm"
-          />
+      {/* Issue #5: Post-select success guidance */}
+      {configApplied && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-success/10 border border-success/20">
+          <Check className="w-4 h-4 text-success shrink-0" />
+          <span className="text-xs text-success">{t("account.configReady")}</span>
         </div>
       )}
+
+      {/* Issue #7: Model selector always visible when logged in (not gated by selectedTokenId) */}
+      <div className="form-control">
+        <ModelSelector
+          value={defaultModel}
+          onChange={onModelChange}
+          apiModels={apiModels}
+          modelsLoading={modelsLoading}
+          modelsError={modelsError}
+          size="sm"
+        />
+      </div>
 
       {/* Error */}
       {error && (
         <div className="flex items-center gap-1.5 text-error text-xs">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>{error === "SESSION_EXPIRED" ? t("account.sessionExpired") : error}</span>
+          <span>{renderError(error)}</span>
         </div>
       )}
     </div>
