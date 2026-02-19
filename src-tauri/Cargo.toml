@@ -1,6 +1,6 @@
 [package]
 name = "hajimi-cli-sync"
-version = "1.0.0"
+version = "1.2.0"
 description = "Sync CLI tool configurations with one click"
 authors = ["hajimi"]
 license = "MIT"

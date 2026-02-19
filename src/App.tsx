@@ -16,7 +16,7 @@ import type { CliCategory } from "./types";
 
 const DEFAULT_URL = "https://vip.aipro.love";
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.2.0";
 
 function App() {
   const { t, i18n } = useTranslation();

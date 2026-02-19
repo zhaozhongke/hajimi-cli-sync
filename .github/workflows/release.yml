@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Hajimi Switch ${{ github.ref_name }}'
+          releaseName: '哈基米 Switch ${{ github.ref_name }}'
           releaseBody: |
             ## 安装说明 / Installation
 
@@ -71,6 +71,6 @@ jobs:
 
             ### Linux
             下载 `.deb`（Debian/Ubuntu）或 `.AppImage`（通用）。
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
