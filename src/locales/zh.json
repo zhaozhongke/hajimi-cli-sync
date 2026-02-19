@@ -51,6 +51,34 @@
     "enabled": "参与全部同步",
     "disabled": "不参与全部同步"
   },
+  "toolDesc": {
+    "claude": "终端 AI 编程助手，适合程序员",
+    "opencode": "开源终端 AI 编程工具",
+    "codex": "OpenAI 官方终端编程助手",
+    "gemini": "Google 官方终端 AI 助手",
+    "openclaw": "多平台 AI 助手，接入 WhatsApp / Telegram / Discord",
+    "droid": "Factory AI 桌面编程助手",
+    "cursor": "AI 代码编辑器，需在应用内配置",
+    "chatbox": "轻量 AI 对话客户端",
+    "cherryStudio": "多模型 AI 对话工具",
+    "jan": "本地优先的 AI 对话客户端",
+    "cline": "VS Code AI 编程插件",
+    "rooCode": "VS Code AI 编程插件（Roo 分支）",
+    "kiloCode": "VS Code AI 编程插件（Kilo 分支）",
+    "sillytavern": "角色扮演 / RP 对话前端",
+    "lobechat": "开源多模型对话平台",
+    "boltai": "macOS 原生 AI 助手"
+  },
+  "toolHint": {
+    "openclaw": "同步完成后，还需在终端运行 openclaw onboard 完成首次设置（选择网关、连接消息渠道）",
+    "sillytavern": "同步完成后，需在 SillyTavern 界面中选择已配置的 API 连接",
+    "manualConfig": "本工具无法自动写入配置，请在应用设置中手动填写 API 地址和密钥"
+  },
+  "capability": {
+    "autoSync": "可自动配置",
+    "manualStep": "需额外手动步骤",
+    "manualOnly": "需手动配置"
+  },
   "config": {
     "title": "{{name}} 配置",
     "close": "关闭",

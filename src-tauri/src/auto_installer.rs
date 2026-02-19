@@ -100,7 +100,44 @@ pub async fn auto_install_git() -> Result<()> {
 
 /// 自动安装Node.js（静默）
 pub async fn auto_install_nodejs() -> Result<()> {
-    tracing::info!("[auto_installer] Starting automatic Node.js installation...");
+    auto_install_nodejs_version("22").await
+}
+
+/// Ensure Node.js 22+ is available (required by OpenClaw)
+async fn ensure_node22() -> Result<()> {
+    if let Some(version) = get_node_major_version() {
+        if version >= 22 {
+            tracing::info!("[auto_installer] Node.js v{} detected, meets 22+ requirement", version);
+            return Ok(());
+        }
+        tracing::warn!("[auto_installer] Node.js v{} detected but OpenClaw requires 22+, upgrading...", version);
+    } else {
+        tracing::info!("[auto_installer] Node.js not found, installing v22...");
+    }
+    auto_install_nodejs_version("22").await
+}
+
+/// Get the major version of installed Node.js, if any
+fn get_node_major_version() -> Option<u32> {
+    let output = Command::new("node")
+        .arg("--version")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let version_str = String::from_utf8_lossy(&output.stdout);
+    // Parse "v22.12.0" -> 22
+    version_str.trim().trim_start_matches('v')
+        .split('.')
+        .next()?
+        .parse::<u32>()
+        .ok()
+}
+
+/// 安装指定大版本的Node.js（静默）
+async fn auto_install_nodejs_version(major: &str) -> Result<()> {
+    tracing::info!("[auto_installer] Starting automatic Node.js {} installation...", major);
 
     #[cfg(target_os = "windows")]
     {
@@ -172,6 +209,11 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
         "claude" => "@anthropic-ai/claude-code",
         "codex" => "@openai/codex",
         "gemini" => "@google/gemini-cli",
+        // OpenClaw requires Node.js 22.12.0+, official npm package is "openclaw"
+        "openclaw" => {
+            ensure_node22().await?;
+            "openclaw"
+        }
         // OpenCode is installed from GitHub, not npm
         "opencode" => {
             return Err(SyncError::Other(
@@ -449,17 +491,17 @@ async fn install_nodejs_standalone() -> Result<()> {
     let node_dir = home.join(".hajimi").join("nodejs");
 
     #[cfg(target_os = "windows")]
-    let url = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-win-x64.zip";
+    let url = "https://nodejs.org/dist/v22.16.0/node-v22.16.0-win-x64.zip";
 
     #[cfg(target_os = "macos")]
     let url = if cfg!(target_arch = "aarch64") {
-        "https://nodejs.org/dist/v20.11.0/node-v20.11.0-darwin-arm64.tar.gz"
+        "https://nodejs.org/dist/v22.16.0/node-v22.16.0-darwin-arm64.tar.gz"
     } else {
-        "https://nodejs.org/dist/v20.11.0/node-v20.11.0-darwin-x64.tar.gz"
+        "https://nodejs.org/dist/v22.16.0/node-v22.16.0-darwin-x64.tar.gz"
     };
 
     #[cfg(target_os = "linux")]
-    let url = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz";
+    let url = "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz";
 
     download_and_extract(url, &node_dir).await?;
 
@@ -474,7 +516,7 @@ async fn install_nodejs_standalone() -> Result<()> {
 #[cfg(target_os = "linux")]
 async fn install_nodejs_nodesource() -> Result<()> {
     // 下载并执行NodeSource安装脚本
-    let script = "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -";
+    let script = "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -";
     run_silent_command("sh", &["-c", script]).await?;
 
     // 安装Node.js

@@ -206,7 +206,7 @@ async fn sync_cli(
             cli_sync::sync_config(&cli_app, &proxy_url, &api_key, model.as_deref())
         }
         "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
-        "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key).await,
+        "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, model.as_deref()).await,
         "droid" => {
             droid_sync::sync_droid_config(&proxy_url, &api_key, model.as_deref()).map(|_| ())
         }
@@ -273,7 +273,7 @@ async fn sync_all(
                 None => Err(format!("Invalid app: {}", app_name)),
             },
             "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
-            "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key).await,
+            "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, effective_model.map(|s| s.as_str())).await,
             "droid" => droid_sync::sync_droid_config(
                 &proxy_url,
                 &api_key,

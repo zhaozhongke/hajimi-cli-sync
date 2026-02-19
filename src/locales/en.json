@@ -51,6 +51,34 @@
     "enabled": "Included in Sync All",
     "disabled": "Excluded from Sync All"
   },
+  "toolDesc": {
+    "claude": "Terminal AI coding assistant for developers",
+    "opencode": "Open-source terminal AI coding tool",
+    "codex": "OpenAI's official terminal coding assistant",
+    "gemini": "Google's official terminal AI assistant",
+    "openclaw": "Multi-platform AI assistant for WhatsApp / Telegram / Discord",
+    "droid": "Factory AI desktop coding assistant",
+    "cursor": "AI code editor — configure in app settings",
+    "chatbox": "Lightweight AI chat client",
+    "cherryStudio": "Multi-model AI chat tool",
+    "jan": "Local-first AI chat client",
+    "cline": "VS Code AI coding extension",
+    "rooCode": "VS Code AI coding extension (Roo fork)",
+    "kiloCode": "VS Code AI coding extension (Kilo fork)",
+    "sillytavern": "Roleplay / RP chat frontend",
+    "lobechat": "Open-source multi-model chat platform",
+    "boltai": "Native macOS AI assistant"
+  },
+  "toolHint": {
+    "openclaw": "After sync, run 'openclaw onboard' in terminal to complete first-time setup (gateway & messaging channels)",
+    "sillytavern": "After sync, select the configured API connection in SillyTavern's UI",
+    "manualConfig": "This tool cannot auto-configure — manually enter the API URL and key in app settings"
+  },
+  "capability": {
+    "autoSync": "Auto-configurable",
+    "manualStep": "Extra manual step needed",
+    "manualOnly": "Manual config only"
+  },
   "config": {
     "title": "{{name}} Config",
     "close": "Close",

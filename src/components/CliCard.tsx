@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   Terminal, Code, Sparkles, FileCode, Bot, MousePointer,
   MessageSquare, Cherry, Cpu, FileText, Rabbit, Ruler,
-  Beer, Brain, Zap, Waves, Check, CircleDot,
+  Beer, Brain, Zap, Waves, Check, CircleDot, Info,
   type LucideIcon,
 } from "lucide-react";
 import type { CliInfo, CliStatusResult } from "../types";
@@ -97,6 +97,9 @@ export function CliCard({
               <span className="font-semibold text-sm leading-tight">{cli.name}</span>
               {version && (
                 <span className="text-[10px] opacity-40 ml-1.5">v{version}</span>
+              )}
+              {cli.descKey && (
+                <p className="text-[10px] opacity-50 leading-tight mt-0.5">{t(cli.descKey)}</p>
               )}
             </div>
           </div>
@@ -195,6 +198,22 @@ export function CliCard({
             ) : (
               <div className="text-[10px] opacity-40 mt-0.5">
                 {t("install.manualConfigHint")}
+              </div>
+            )}
+
+            {/* Post-sync hint: tell user what they still need to do */}
+            {cli.postSyncHintKey && isSynced && (
+              <div className="flex items-start gap-1.5 mt-1 p-1.5 rounded bg-info/10 text-info">
+                <Info className="w-3 h-3 mt-0.5 shrink-0" />
+                <span className="text-[10px] leading-tight">{t(cli.postSyncHintKey)}</span>
+              </div>
+            )}
+
+            {/* Manual-config hint always visible */}
+            {cli.postSyncHintKey && cli.installType === "manual-config" && (
+              <div className="flex items-start gap-1.5 mt-1 p-1.5 rounded bg-warning/10 text-warning">
+                <Info className="w-3 h-3 mt-0.5 shrink-0" />
+                <span className="text-[10px] leading-tight">{t(cli.postSyncHintKey)}</span>
               </div>
             )}
           </>

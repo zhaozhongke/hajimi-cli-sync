@@ -157,7 +157,7 @@ async fn fetch_models_for_openclaw(
     models
 }
 
-pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str) -> Result<(), String> {
+pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| {
         "Failed to determine OpenClaw config directory".to_string()
     })?;
@@ -217,6 +217,24 @@ pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str) -> Result<(), 
         .and_then(|p| p.as_object_mut())
     {
         providers.insert(PROVIDER_ID.to_string(), provider);
+    }
+
+    // Set default agent model to use hajimi provider
+    if let Some(model_id) = model {
+        // Ensure agents.defaults.model path exists
+        if !config.get("agents").map_or(false, |v| v.is_object()) {
+            config["agents"] = serde_json::json!({});
+        }
+        if !config["agents"].get("defaults").map_or(false, |v| v.is_object()) {
+            config["agents"]["defaults"] = serde_json::json!({});
+        }
+        if !config["agents"]["defaults"].get("model").map_or(false, |v| v.is_object()) {
+            config["agents"]["defaults"]["model"] = serde_json::json!({});
+        }
+
+        // Set primary model to hajimi/model_id format
+        let primary_model = format!("{}/{}", PROVIDER_ID, model_id);
+        config["agents"]["defaults"]["model"]["primary"] = Value::String(primary_model);
     }
 
     let content = utils::to_json_pretty(&config).map_err(|e| e.to_string())?;
