@@ -41,6 +41,7 @@ export interface CliInfo {
 export const CLI_LIST: CliInfo[] = [
   { id: "claude", name: "Claude Code", icon: "terminal", color: "border-purple-400", installType: "npm", category: "cli" },
   { id: "opencode", name: "OpenCode", icon: "file-code", color: "border-orange-400", installType: "manual", category: "cli", downloadUrl: "https://github.com/anomalyco/opencode" },
+  { id: "codex", name: "Codex AI", icon: "code", color: "border-blue-400", installType: "npm", category: "cli" },
   { id: "gemini", name: "Gemini CLI", icon: "sparkles", color: "border-green-400", installType: "npm", category: "cli" },
   { id: "openclaw", name: "OpenClaw", icon: "waves", color: "border-rose-400", installType: "manual", category: "cli", downloadUrl: "https://docs.openclaw.ai" },
   { id: "droid", name: "Droid", icon: "bot", color: "border-red-400", installType: "desktop", category: "desktop", downloadUrl: "https://factory.ai" },
@@ -54,6 +55,5 @@ export const CLI_LIST: CliInfo[] = [
   { id: "sillytavern", name: "SillyTavern", icon: "beer", color: "border-yellow-400", installType: "manual", category: "desktop", downloadUrl: "https://docs.sillytavern.app/installation/" },
   { id: "lobechat", name: "LobeChat", icon: "brain", color: "border-violet-400", installType: "desktop", category: "desktop", downloadUrl: "https://lobehub.com/download" },
   { id: "boltai", name: "BoltAI", icon: "zap", color: "border-slate-400", installType: "desktop", category: "desktop", downloadUrl: "https://boltai.com" },
-  { id: "codex", name: "Codex AI", icon: "code", color: "border-blue-400", installType: "npm", category: "cli" },
 ];
 
