@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::cli_sync;
 use crate::utils;
 
-const BACKUP_SUFFIX: &str = ".antigravity.bak";
+use crate::utils::BACKUP_SUFFIX;
 
 /// Extra AI client tools beyond the core 5 (Claude, Codex, Gemini, OpenCode, Droid).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -468,7 +468,7 @@ fn check_chatbox_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| urls_match(u, proxy_url));
+        .map_or(false, |u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -499,7 +499,7 @@ fn check_cherry_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| urls_match(u, proxy_url));
+        .map_or(false, |u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -522,7 +522,7 @@ fn check_jan_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| urls_match(u, proxy_url));
+        .map_or(false, |u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -541,7 +541,7 @@ fn check_sillytavern_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| urls_match(u, proxy_url));
+        .map_or(false, |u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -570,14 +570,12 @@ fn check_vscode_env_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| urls_match(u, proxy_url));
+        .map_or(false, |u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
 
-fn urls_match(a: &str, b: &str) -> bool {
-    a.trim_end_matches('/') == b.trim_end_matches('/')
-}
+// urls_match: use crate::utils::urls_match
 
 // ---------------------------------------------------------------------------
 // Sync
@@ -719,16 +717,10 @@ fn sync_jan(proxy_url: &str, api_key: &str, _model: Option<&str>) -> Result<(), 
 
     // Jan engine config format (~/jan/engines/openai.json):
     // { "full_url": "https://proxy/v1/chat/completions", "api_key": "sk-..." }
-    let full_url = format!(
-        "{}/chat/completions",
-        proxy_url.trim_end_matches('/').trim_end_matches("/v1")
-    );
-    // Ensure /v1 is present before /chat/completions
-    let full_url = if full_url.contains("/v1/") {
-        full_url
-    } else {
-        full_url.replace("/chat/completions", "/v1/chat/completions")
-    };
+    // Normalise to always include /v1 before /chat/completions
+    let base = proxy_url.trim().trim_end_matches('/');
+    let base = base.trim_end_matches("/v1");
+    let full_url = format!("{}/v1/chat/completions", base);
 
     let config = serde_json::json!({
         "full_url": full_url,
@@ -1034,15 +1026,9 @@ mod tests {
         // Jan engine config uses full_url (with /chat/completions) and api_key
         let proxy_url = "https://proxy.test/v1";
         let api_key = "sk-test";
-        let full_url = format!(
-            "{}/chat/completions",
-            proxy_url.trim_end_matches('/').trim_end_matches("/v1")
-        );
-        let full_url = if full_url.contains("/v1/") {
-            full_url
-        } else {
-            full_url.replace("/chat/completions", "/v1/chat/completions")
-        };
+        let base = proxy_url.trim().trim_end_matches('/');
+        let base = base.trim_end_matches("/v1");
+        let full_url = format!("{}/v1/chat/completions", base);
 
         let config = serde_json::json!({
             "full_url": full_url,

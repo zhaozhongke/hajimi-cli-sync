@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::utils;
 
 const OPENCODE_CONFIG_FILE: &str = "opencode.json";
-const BACKUP_SUFFIX: &str = ".antigravity.bak";
+use crate::utils::BACKUP_SUFFIX;
 const PROVIDER_ID: &str = "hajimi";
 
 /// Normalize base URL to ensure it ends with `/v1`

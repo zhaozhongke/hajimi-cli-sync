@@ -49,7 +49,8 @@ export function ModelSelector({
             onClick={() => {
               setShowCustom(false);
               setCustomModel("");
-              if (!customModel && isInList) onChange(apiModels[0]);
+              // Restore the previously selected list value (don't clobber user's choice)
+              if (!isInList && apiModels.length > 0) onChange(apiModels[0]);
             }}
           >
             ✕

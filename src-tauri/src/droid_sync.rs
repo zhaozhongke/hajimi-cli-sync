@@ -7,7 +7,7 @@ use crate::utils;
 
 const DROID_DIR: &str = ".factory";
 const DROID_CONFIG_FILE: &str = "settings.json";
-const BACKUP_SUFFIX: &str = ".antigravity.bak";
+use crate::utils::BACKUP_SUFFIX;
 const AG_ID_PREFIX: &str = "custom:AG-";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -57,7 +57,7 @@ fn count_synced_models(json: &Value) -> (usize, Option<String>) {
     (count, first_url)
 }
 
-pub fn get_sync_status(_proxy_url: &str) -> (bool, bool, Option<String>, usize) {
+pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>, usize) {
     let config_path = match get_config_path() {
         Some(p) => p,
         None => return (false, false, None, 0),
@@ -77,7 +77,12 @@ pub fn get_sync_status(_proxy_url: &str) -> (bool, bool, Option<String>, usize) 
 
     let json: Value = serde_json::from_str(&content).unwrap_or_default();
     let (synced_count, first_url) = count_synced_models(&json);
-    (synced_count > 0, has_backup, first_url, synced_count)
+    // is_synced: must have AG models AND their baseUrl must match current proxy
+    let is_synced = synced_count > 0
+        && first_url
+            .as_deref()
+            .map_or(false, |u| utils::urls_match(u, proxy_url));
+    (is_synced, has_backup, first_url, synced_count)
 }
 
 fn build_droid_custom_models(proxy_url: &str, api_key: &str, model_ids: &[&str]) -> Vec<Value> {

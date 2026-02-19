@@ -56,7 +56,8 @@
     "syncedModels": "已同步 {{count}} 个模型",
     "enabled": "参与全部同步",
     "disabled": "不参与全部同步",
-    "openApp": "打开"
+    "openApp": "打开",
+    "viewCommunity": "查看插件市场"
   },
   "toolDesc": {
     "claude": "Anthropic 官方终端编程助手，直接在命令行中用 AI 写代码、改 Bug",
@@ -110,7 +111,8 @@
     "saveConfirm": "确定要保存对 {{file}} 的修改吗？",
     "invalidJson": "JSON 格式错误",
     "saveFailed": "保存失败",
-    "openFolder": "打开文件夹"
+    "openFolder": "打开文件夹",
+    "unsavedChanges": "有未保存的修改，确定要切换文件吗？"
   },
   "toast": {
     "syncSuccess": "{{name}} 同步成功",

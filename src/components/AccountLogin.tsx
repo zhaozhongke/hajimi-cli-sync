@@ -104,6 +104,8 @@ export function AccountLogin({
     setSelectedTokenId(null);
     setConfigApplied(false);
     toast.success(t("account.logoutSuccess"));
+    // Re-check platform so the system name badge stays consistent
+    checkPlatform(platformUrl);
   };
 
   const handleSelectToken = (token: ApiTokenInfo) => {

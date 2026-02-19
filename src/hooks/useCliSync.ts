@@ -213,7 +213,6 @@ export function useCliSync() {
     installing,
     detectAll,
     syncOne,
-    syncAll,
     restoreOne,
     installOne,
     getConfigContent,

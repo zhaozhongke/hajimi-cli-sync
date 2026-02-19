@@ -18,7 +18,7 @@ pub struct CliConfigFile {
     pub path: PathBuf,
 }
 
-const BACKUP_SUFFIX: &str = ".antigravity.bak";
+use crate::utils::BACKUP_SUFFIX;
 
 impl CliApp {
     pub fn as_str(&self) -> &'static str {

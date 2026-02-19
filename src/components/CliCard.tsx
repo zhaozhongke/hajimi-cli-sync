@@ -111,7 +111,7 @@ export function CliCard({
                   <button
                     className="opacity-30 hover:opacity-70 transition-opacity"
                     onClick={(e) => { e.stopPropagation(); onCommunity(); }}
-                    title={cli.communityUrl}
+                    title={t("cli.viewCommunity")}
                   >
                     <ExternalLink className="w-3 h-3" />
                   </button>

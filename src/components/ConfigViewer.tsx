@@ -197,8 +197,14 @@ export function ConfigViewer({
               <button
                 key={f}
                 className={`tab tab-sm ${selectedFile === f ? "tab-active" : ""}`}
-                onClick={() => setSelectedFile(f)}
-                disabled={editing}
+                onClick={() => {
+                  if (editing && editedContent !== content) {
+                    if (!window.confirm(t("config.unsavedChanges"))) return;
+                  }
+                  setEditing(false);
+                  setValidationError("");
+                  setSelectedFile(f);
+                }}
               >
                 {f}
               </button>

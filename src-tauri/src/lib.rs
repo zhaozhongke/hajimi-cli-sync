@@ -291,8 +291,12 @@ async fn sync_all(
         });
     }
 
-    // Extra clients
+    // Extra clients — skip tools that don't support file-based sync
     for client in ExtraClient::all() {
+        if !client.supports_file_sync() {
+            continue;
+        }
+
         let app_name = client.as_str();
         let proxy_url = get_proxy_url(app_name, &url);
         let installed = extra_clients::check_extra_installed(client).0;

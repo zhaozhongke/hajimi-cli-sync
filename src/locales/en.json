@@ -56,7 +56,8 @@
     "syncedModels": "{{count}} models synced",
     "enabled": "Included in Sync All",
     "disabled": "Excluded from Sync All",
-    "openApp": "Open"
+    "openApp": "Open",
+    "viewCommunity": "View in marketplace"
   },
   "toolDesc": {
     "claude": "Anthropic's official terminal coding assistant — write and fix code with AI in the command line",
@@ -110,7 +111,8 @@
     "saveConfirm": "Are you sure you want to save changes to {{file}}?",
     "invalidJson": "Invalid JSON",
     "saveFailed": "Save failed",
-    "openFolder": "Open Folder"
+    "openFolder": "Open Folder",
+    "unsavedChanges": "You have unsaved changes. Switch file anyway?"
   },
   "toast": {
     "syncSuccess": "{{name}} synced successfully",

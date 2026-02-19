@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::utils;
 
 const CONFIG_FILE: &str = "openclaw.json";
-const BACKUP_SUFFIX: &str = ".antigravity.bak";
+use crate::utils::BACKUP_SUFFIX;
 const PROVIDER_ID: &str = "hajimi";
 
 fn get_config_dir() -> Option<PathBuf> {
@@ -65,22 +65,12 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| urls_match(u, proxy_url));
+        .map_or(false, |u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
 
-fn urls_match(a: &str, b: &str) -> bool {
-    let normalize = |s: &str| {
-        let trimmed = s.trim().trim_end_matches('/');
-        if trimmed.ends_with("/v1") {
-            trimmed.to_string()
-        } else {
-            format!("{}/v1", trimmed)
-        }
-    };
-    normalize(a) == normalize(b)
-}
+// urls_match: use crate::utils::urls_match
 
 fn normalize_base_url(input: &str) -> String {
     let trimmed = input.trim().trim_end_matches('/');

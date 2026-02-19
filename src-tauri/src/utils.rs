@@ -1,4 +1,4 @@
-use fs2::FileExt;
+
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -221,28 +221,6 @@ pub fn get_cli_version(executable: &PathBuf) -> Option<String> {
     }
 }
 
-/// Create a backup of a file with the given suffix. Only creates backup once
-/// (does not overwrite existing backup).
-pub fn create_backup(path: &PathBuf, suffix: &str) -> Result<()> {
-    if !path.exists() {
-        return Ok(());
-    }
-    let file_name = path
-        .file_name()
-        .ok_or_else(|| SyncError::Other("Invalid file path".to_string()))?
-        .to_string_lossy();
-    let backup_path = path.with_file_name(format!("{}{}", file_name, suffix));
-    if backup_path.exists() {
-        return Ok(());
-    }
-    fs::copy(path, &backup_path).map_err(|e| SyncError::FileWriteFailed {
-        path: backup_path.to_string_lossy().to_string(),
-        reason: e.to_string(),
-    })?;
-    tracing::info!("[backup] Created: {:?}", backup_path);
-    Ok(())
-}
-
 /// Maximum number of timestamped backups to retain per config file.
 const BACKUP_RETAIN_COUNT: usize = 5;
 
@@ -416,51 +394,28 @@ fn try_atomic_write(tmp_path: &PathBuf, target: &PathBuf, content: &str) -> Resu
     Ok(())
 }
 
-/// 带文件锁的原子写入（防止并发修改）
-pub fn atomic_write_with_lock(target: &PathBuf, content: &str) -> Result<()> {
-    let lock_path = target.with_extension("lock");
-
-    // 创建锁文件
-    let lock_file = fs::File::create(&lock_path).map_err(|e| SyncError::FileWriteFailed {
-        path: lock_path.to_string_lossy().to_string(),
-        reason: e.to_string(),
-    })?;
-
-    // 尝试获取独占锁（最多等待5秒）
-    for attempt in 0..50 {
-        match lock_file.try_lock_exclusive() {
-            Ok(_) => {
-                // 获取锁成功，执行写入
-                let result = atomic_write(target, content);
-
-                // 释放锁
-                let _ = fs2::FileExt::unlock(&lock_file);
-                let _ = fs::remove_file(&lock_path);
-
-                return result;
-            }
-            Err(_) if attempt < 49 => {
-                std::thread::sleep(Duration::from_millis(100));
-            }
-            Err(_) => {
-                return Err(SyncError::FileLocked {
-                    path: target.to_string_lossy().to_string(),
-                });
-            }
-        }
-    }
-
-    Err(SyncError::FileLocked {
-        path: target.to_string_lossy().to_string(),
-    })
-}
-
 /// Serialize a serde_json::Value to pretty JSON.
 pub fn to_json_pretty(value: &Value) -> Result<String> {
     serde_json::to_string_pretty(value).map_err(|e| SyncError::JsonParseFailed {
         path: "in-memory".to_string(),
         reason: e.to_string(),
     })
+}
+
+/// Canonical backup suffix used across all sync modules.
+pub const BACKUP_SUFFIX: &str = ".antigravity.bak";
+
+/// Compare two proxy URLs ignoring trailing slashes and optional /v1 suffix.
+pub fn urls_match(a: &str, b: &str) -> bool {
+    let normalize = |s: &str| {
+        let t = s.trim().trim_end_matches('/');
+        if t.ends_with("/v1") {
+            t.to_string()
+        } else {
+            format!("{}/v1", t)
+        }
+    };
+    normalize(a) == normalize(b)
 }
 
 /// Validate a URL string (basic check: must start with http:// or https://)
@@ -477,58 +432,6 @@ pub fn validate_url(url: &str) -> Result<()> {
         });
     }
     Ok(())
-}
-
-/// 验证并修复损坏的JSON配置
-pub fn validate_and_repair_json(path: &PathBuf, backup_suffix: &str) -> Result<Value> {
-    let content = fs::read_to_string(path).map_err(|e| SyncError::FileReadFailed {
-        path: path.to_string_lossy().to_string(),
-        reason: e.to_string(),
-    })?;
-
-    match serde_json::from_str::<Value>(&content) {
-        Ok(json) => Ok(json),
-        Err(e) => {
-            tracing::error!("[validate_json] Config corrupted: {}", e);
-
-            // 尝试从备份恢复
-            let backup_path = path.with_file_name(format!(
-                "{}{}",
-                path.file_name().unwrap().to_string_lossy(),
-                backup_suffix
-            ));
-
-            if backup_path.exists() {
-                tracing::info!("[validate_json] Attempting to restore from backup...");
-                let backup_content =
-                    fs::read_to_string(&backup_path).map_err(|e| SyncError::ConfigCorrupted {
-                        path: path.to_string_lossy().to_string(),
-                        reason: format!("Backup also unreadable: {}", e),
-                    })?;
-
-                match serde_json::from_str::<Value>(&backup_content) {
-                    Ok(json) => {
-                        // 备份有效，恢复它
-                        fs::copy(&backup_path, path).map_err(|e| SyncError::FileWriteFailed {
-                            path: path.to_string_lossy().to_string(),
-                            reason: e.to_string(),
-                        })?;
-                        tracing::info!("[validate_json] Restored from backup successfully");
-                        Ok(json)
-                    }
-                    Err(backup_err) => Err(SyncError::ConfigCorrupted {
-                        path: path.to_string_lossy().to_string(),
-                        reason: format!("Original: {}. Backup: {}", e, backup_err),
-                    }),
-                }
-            } else {
-                Err(SyncError::ConfigCorrupted {
-                    path: path.to_string_lossy().to_string(),
-                    reason: format!("JSON parse error: {}. No backup found.", e),
-                })
-            }
-        }
-    }
 }
 
 #[cfg(test)]
