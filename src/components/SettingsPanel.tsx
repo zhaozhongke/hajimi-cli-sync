@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { MODEL_GROUPS } from "../types";
+import { save, open } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
+import { Eye, EyeOff, Check, X, RefreshCw, Download, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { ModelSelector } from "./ModelSelector";
 
 interface SettingsPanelProps {
   url: string;
@@ -9,13 +14,11 @@ interface SettingsPanelProps {
   onUrlChange: (url: string) => void;
   onApiKeyChange: (key: string) => void;
   onModelChange: (model: string) => void;
-  onSyncAll: () => void;
-  onRestoreAll: () => void;
-  syncing: boolean;
-  hasInstalled: boolean;
   apiModels: string[];
   modelsLoading: boolean;
   modelsError: string | null;
+  perCliModels: Record<string, string>;
+  onPerCliModelsChange: (models: Record<string, string>) => void;
 }
 
 export function SettingsPanel({
@@ -25,187 +28,211 @@ export function SettingsPanel({
   onUrlChange,
   onApiKeyChange,
   onModelChange,
-  onSyncAll,
-  onRestoreAll,
-  syncing,
-  hasInstalled,
   apiModels,
   modelsLoading,
   modelsError,
+  perCliModels,
+  onPerCliModelsChange,
 }: SettingsPanelProps) {
   const { t } = useTranslation();
   const [showKey, setShowKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+
+  const urlError = useMemo(() => {
+    const trimmed = url.trim();
+    if (!trimmed) return t("settings.urlRequired");
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://"))
+      return t("settings.urlInvalid");
+    return null;
+  }, [url, t]);
+
+  // Determine which step user is on
+  const currentStep = useMemo(() => {
+    if (!url.trim() || urlError) return 1;
+    if (!apiKey.trim()) return 2;
+    return 3;
+  }, [url, apiKey, urlError]);
+
+  const handleTestConnection = async () => {
+    if (!url.trim() || !apiKey.trim()) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      await invoke("test_connection", { url, apiKey });
+      setTestResult("success");
+    } catch {
+      setTestResult("error");
+    } finally {
+      setTesting(false);
+      setTimeout(() => setTestResult(null), 3000);
+    }
+  };
+
+  const handleExportSettings = async () => {
+    const data = {
+      version: 1,
+      url,
+      apiKey,
+      defaultModel,
+      perCliModels,
+    };
+    try {
+      const filePath = await save({
+        defaultPath: "hajimi-settings.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (filePath) {
+        await writeTextFile(filePath, JSON.stringify(data, null, 2));
+        toast.success(t("settings.exportSuccess"));
+      }
+    } catch (e) {
+      toast.error(t("settings.exportFailed") + ": " + e);
+    }
+  };
+
+  const handleImportSettings = async () => {
+    try {
+      const filePath = await open({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        multiple: false,
+      });
+      if (!filePath) return;
+      const raw = await readTextFile(filePath as string);
+      const data = JSON.parse(raw);
+      if (data.url) onUrlChange(data.url);
+      if (data.apiKey) onApiKeyChange(data.apiKey);
+      if (data.defaultModel) onModelChange(data.defaultModel);
+      if (data.perCliModels) onPerCliModelsChange(data.perCliModels);
+      toast.success(t("settings.importSuccess"));
+    } catch (e) {
+      toast.error(t("settings.importFailed") + ": " + e);
+    }
+  };
+
+  const stepIndicator = (step: number, label: string) => {
+    const isActive = currentStep === step;
+    const isDone = currentStep > step;
+    return (
+      <div className="flex items-center gap-1.5">
+        <div
+          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+            isDone
+              ? "bg-success text-success-content"
+              : isActive
+              ? "bg-primary text-primary-content"
+              : "bg-base-300 text-base-content/40"
+          }`}
+        >
+          {isDone ? <Check className="w-3 h-3" /> : step}
+        </div>
+        <span
+          className={`text-xs font-medium ${
+            isActive ? "text-base-content" : isDone ? "text-success" : "text-base-content/40"
+          }`}
+        >
+          {label}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-3">
-      <div className="form-control">
-        <label className="label py-1">
-          <span className="label-text text-sm font-medium">{t("settings.apiUrl")}</span>
-        </label>
-        <input
-          type="text"
-          className="input input-bordered input-sm w-full"
-          value={url}
-          onChange={(e) => onUrlChange(e.target.value)}
-          placeholder="https://free.aipro.love"
-        />
+      {/* Step indicators */}
+      <div className="flex items-center gap-4 pb-1">
+        {stepIndicator(1, t("steps.step1"))}
+        <div className="flex-1 h-px bg-base-300" />
+        {stepIndicator(2, t("steps.step2"))}
+        <div className="flex-1 h-px bg-base-300" />
+        {stepIndicator(3, t("steps.step3"))}
       </div>
 
+      {/* Step 1: URL */}
       <div className="form-control">
-        <label className="label py-1">
-          <span className="label-text text-sm font-medium">{t("settings.apiKey")}</span>
-        </label>
+        <input
+          type="text"
+          className={`input input-bordered input-sm w-full ${urlError ? "input-error" : currentStep === 1 ? "input-primary" : ""}`}
+          value={url}
+          onChange={(e) => onUrlChange(e.target.value)}
+          placeholder={t("steps.step1Hint")}
+        />
+        {urlError && (
+          <span className="label-text-alt text-error text-xs mt-1">{urlError}</span>
+        )}
+      </div>
+
+      {/* Step 2: API Key */}
+      <div className="form-control">
         <div className="join w-full">
           <input
             type={showKey ? "text" : "password"}
-            className="input input-bordered input-sm join-item w-full"
+            className={`input input-bordered input-sm join-item w-full ${currentStep === 2 ? "input-primary" : ""}`}
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
-            placeholder="sk-..."
+            placeholder={t("steps.step2Hint")}
           />
           <button
             className="btn btn-sm btn-ghost join-item"
             onClick={() => setShowKey(!showKey)}
             aria-label={showKey ? "Hide API key" : "Show API key"}
           >
-            {showKey ? "\u{1F648}" : "\u{1F441}"}
+            {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            className={`btn btn-sm join-item ${
+              testResult === "success"
+                ? "btn-success"
+                : testResult === "error"
+                ? "btn-error"
+                : "btn-ghost"
+            }`}
+            onClick={handleTestConnection}
+            disabled={testing || !!urlError || !apiKey.trim()}
+            title={t("connection.test")}
+          >
+            {testing ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : testResult === "success" ? (
+              <Check className="w-3.5 h-3.5" />
+            ) : testResult === "error" ? (
+              <X className="w-3.5 h-3.5" />
+            ) : (
+              t("connection.test")
+            )}
           </button>
         </div>
       </div>
 
+      {/* Step 3: Default Model */}
       <div className="form-control">
-        <label className="label py-1">
-          <span className="label-text text-sm font-medium">{t("settings.defaultModel")}</span>
-        </label>
-        <ModelSelectInline
+        <ModelSelector
           value={defaultModel}
           onChange={onModelChange}
           apiModels={apiModels}
           modelsLoading={modelsLoading}
           modelsError={modelsError}
+          size="sm"
         />
       </div>
 
-      <div className="flex gap-2 pt-1">
+      {/* Import / Export */}
+      <div className="flex gap-2">
         <button
-          className="btn btn-primary btn-sm flex-1"
-          onClick={onSyncAll}
-          disabled={syncing || !apiKey || !hasInstalled}
+          className="btn btn-ghost btn-xs flex-1 gap-1 opacity-60"
+          onClick={handleExportSettings}
         >
-          {syncing ? (
-            <span className="loading loading-spinner loading-xs" />
-          ) : null}
-          {t("settings.syncAll")}
+          <Download className="w-3 h-3" />
+          {t("settings.export")}
         </button>
         <button
-          className="btn btn-outline btn-sm flex-1"
-          onClick={onRestoreAll}
-          disabled={syncing}
+          className="btn btn-ghost btn-xs flex-1 gap-1 opacity-60"
+          onClick={handleImportSettings}
         >
-          {t("settings.restoreAll")}
+          <Upload className="w-3 h-3" />
+          {t("settings.import")}
         </button>
       </div>
-    </div>
-  );
-}
-
-function ModelSelectInline({
-  value,
-  onChange,
-  apiModels,
-  modelsLoading,
-  modelsError,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  apiModels: string[];
-  modelsLoading: boolean;
-  modelsError: string | null;
-}) {
-  const { t } = useTranslation();
-  const [custom, setCustom] = useState("");
-  const [showCustom, setShowCustom] = useState(false);
-
-  const useApiModels = apiModels.length > 0;
-  const allHardcoded = MODEL_GROUPS.flatMap((g) => g.models);
-  const isCustom = !allHardcoded.includes(value) && (!useApiModels || !apiModels.includes(value)) && value !== "";
-
-  if (showCustom || isCustom) {
-    return (
-      <div className="join w-full">
-        <input
-          type="text"
-          className="input input-bordered input-sm join-item w-full"
-          value={isCustom ? value : custom}
-          onChange={(e) => {
-            setCustom(e.target.value);
-            onChange(e.target.value);
-          }}
-          placeholder={t("settings.customModel")}
-        />
-        <button
-          className="btn btn-sm btn-ghost join-item"
-          onClick={() => {
-            setShowCustom(false);
-            if (!custom) onChange("claude-sonnet-4-5");
-          }}
-        >
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="join w-full">
-      <select
-        className="select select-bordered select-sm join-item w-full"
-        value={value}
-        onChange={(e) => {
-          if (e.target.value === "__custom__") {
-            setShowCustom(true);
-            setCustom("");
-          } else {
-            onChange(e.target.value);
-          }
-        }}
-      >
-        {useApiModels ? (
-          <optgroup label={t("settings.apiModelsGroup")}>
-            {apiModels.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </optgroup>
-        ) : (
-          MODEL_GROUPS.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.models.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </optgroup>
-          ))
-        )}
-        <optgroup label="---">
-          <option value="__custom__">{t("settings.customModel")}</option>
-        </optgroup>
-      </select>
-      {modelsLoading && (
-        <span className="btn btn-sm btn-ghost join-item no-animation">
-          <span className="loading loading-spinner loading-xs" />
-        </span>
-      )}
-      {modelsError && !modelsLoading && (
-        <span
-          className="btn btn-sm btn-ghost join-item text-warning no-animation"
-          title={modelsError}
-        >
-          !
-        </span>
-      )}
     </div>
   );
 }

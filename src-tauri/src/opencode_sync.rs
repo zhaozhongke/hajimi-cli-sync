@@ -9,31 +9,6 @@ const OPENCODE_CONFIG_FILE: &str = "opencode.json";
 const BACKUP_SUFFIX: &str = ".antigravity.bak";
 const PROVIDER_ID: &str = "hajimi";
 
-/// Model definition with metadata
-#[derive(Debug, Clone)]
-struct ModelDef {
-    id: &'static str,
-    name: &'static str,
-    context_limit: u32,
-    output_limit: u32,
-    input_modalities: &'static [&'static str],
-    output_modalities: &'static [&'static str],
-    reasoning: bool,
-}
-
-fn build_model_catalog() -> Vec<ModelDef> {
-    vec![
-        ModelDef { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", context_limit: 200_000, output_limit: 64_000, input_modalities: &["text", "image", "pdf"], output_modalities: &["text"], reasoning: false },
-        ModelDef { id: "claude-sonnet-4-5-thinking", name: "Claude Sonnet 4.5 Thinking", context_limit: 200_000, output_limit: 64_000, input_modalities: &["text", "image", "pdf"], output_modalities: &["text"], reasoning: true },
-        ModelDef { id: "claude-opus-4-5-thinking", name: "Claude Opus 4.5 Thinking", context_limit: 200_000, output_limit: 64_000, input_modalities: &["text", "image", "pdf"], output_modalities: &["text"], reasoning: true },
-        ModelDef { id: "gemini-3-pro-high", name: "Gemini 3 Pro High", context_limit: 1_048_576, output_limit: 65_535, input_modalities: &["text", "image", "pdf"], output_modalities: &["text", "image"], reasoning: true },
-        ModelDef { id: "gemini-3-pro-low", name: "Gemini 3 Pro Low", context_limit: 1_048_576, output_limit: 65_535, input_modalities: &["text", "image", "pdf"], output_modalities: &["text", "image"], reasoning: true },
-        ModelDef { id: "gemini-3-flash", name: "Gemini 3 Flash", context_limit: 1_048_576, output_limit: 65_536, input_modalities: &["text", "image", "pdf"], output_modalities: &["text"], reasoning: true },
-        ModelDef { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", context_limit: 1_048_576, output_limit: 65_536, input_modalities: &["text", "image", "pdf"], output_modalities: &["text"], reasoning: false },
-        ModelDef { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", context_limit: 1_048_576, output_limit: 65_536, input_modalities: &["text", "image", "pdf"], output_modalities: &["text"], reasoning: true },
-    ]
-}
-
 /// Normalize base URL to ensure it ends with `/v1`
 fn normalize_base_url(input: &str) -> String {
     let trimmed = input.trim().trim_end_matches('/');
@@ -66,7 +41,6 @@ pub fn check_opencode_installed() -> (bool, Option<String>) {
     match utils::resolve_executable("opencode") {
         Some(path) => {
             let version = utils::get_cli_version(&path);
-            // If resolved but version failed, still report as installed
             (true, version.or_else(|| Some("unknown".to_string())))
         }
         None => (false, None),
@@ -79,7 +53,8 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
         None => return (false, false, None),
     };
 
-    let backup_path = config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
+    let backup_path =
+        config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
     let has_backup = backup_path.exists();
 
     if !config_path.exists() {
@@ -122,33 +97,74 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
     (is_synced, has_backup, current_base_url)
 }
 
-fn build_model_json(model_def: &ModelDef) -> Value {
-    let mut model_obj = serde_json::Map::new();
-    model_obj.insert("name".to_string(), Value::String(model_def.name.to_string()));
-    model_obj.insert("limit".to_string(), serde_json::json!({
-        "context": model_def.context_limit,
-        "output": model_def.output_limit,
-    }));
-    model_obj.insert("modalities".to_string(), serde_json::json!({
-        "input": model_def.input_modalities,
-        "output": model_def.output_modalities,
-    }));
-    if model_def.reasoning {
-        model_obj.insert("reasoning".to_string(), Value::Bool(true));
+/// Fetch model IDs from the proxy's /v1/models endpoint.
+/// Returns a map of model_id -> { "name": model_id } for opencode's models format.
+/// On any failure, returns an empty map (sync still proceeds without models).
+async fn fetch_models_from_proxy(base_url: &str, api_key: &str) -> serde_json::Map<String, Value> {
+    let models_url = format!("{}/models", base_url.trim_end_matches('/'));
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return serde_json::Map::new(),
+    };
+
+    let resp = match client
+        .get(&models_url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r,
+        _ => return serde_json::Map::new(),
+    };
+
+    let body: Value = match resp.json().await {
+        Ok(v) => v,
+        Err(_) => return serde_json::Map::new(),
+    };
+
+    let mut models = serde_json::Map::new();
+    if let Some(data) = body.get("data").and_then(|v| v.as_array()) {
+        for item in data {
+            if let Some(id) = item.get("id").and_then(|v| v.as_str()) {
+                let is_reasoning = id.contains("thinking") || id.contains("pro");
+                let is_claude = id.contains("claude");
+                let is_gemini = id.contains("gemini");
+                let is_image = id.contains("image");
+                let supports_attachment = is_claude || is_gemini;
+
+                let mut model_obj = serde_json::json!({ "name": id });
+                if let Some(obj) = model_obj.as_object_mut() {
+                    if supports_attachment {
+                        obj.insert("attachment".to_string(), Value::Bool(true));
+                    }
+                    if is_reasoning {
+                        obj.insert("reasoning".to_string(), Value::Bool(true));
+                    }
+                    if !is_image {
+                        obj.insert("tool_call".to_string(), Value::Bool(true));
+                    }
+                }
+                models.insert(id.to_string(), model_obj);
+            }
+        }
     }
-    Value::Object(model_obj)
+    models
 }
 
-pub fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), String> {
-    let config_path = get_config_path()
-        .ok_or_else(|| "Failed to get OpenCode config directory (home dir not found)".to_string())?;
+pub async fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), String> {
+    let config_path = get_config_path().ok_or_else(|| {
+        "Failed to get OpenCode config directory (home dir not found)".to_string()
+    })?;
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
     }
 
-    utils::create_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
+    utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
 
     let mut config: Value = if config_path.exists() {
         fs::read_to_string(&config_path)
@@ -169,7 +185,10 @@ pub fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), String
 
     let normalized_url = normalize_base_url(proxy_url);
 
-    // Ensure provider object
+    // Fetch models from proxy before any mutable borrows
+    let fetched_models = fetch_models_from_proxy(&normalized_url, api_key).await;
+
+    // Ensure provider object exists
     if !config.get("provider").map_or(false, |v| v.is_object()) {
         config["provider"] = serde_json::json!({});
     }
@@ -180,24 +199,28 @@ pub fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), String
         }
         if let Some(ag_provider) = provider.get_mut(PROVIDER_ID) {
             if let Some(obj) = ag_provider.as_object_mut() {
-                obj.insert("npm".to_string(), Value::String("@ai-sdk/anthropic".to_string()));
+                obj.insert(
+                    "npm".to_string(),
+                    Value::String("@ai-sdk/openai".to_string()),
+                );
                 obj.insert("name".to_string(), Value::String("Hajimi".to_string()));
             }
 
             if !ag_provider.get("options").map_or(false, |v| v.is_object()) {
                 ag_provider["options"] = serde_json::json!({});
             }
-            if let Some(options) = ag_provider.get_mut("options").and_then(|o| o.as_object_mut()) {
+            if let Some(options) = ag_provider
+                .get_mut("options")
+                .and_then(|o| o.as_object_mut())
+            {
                 options.insert("baseURL".to_string(), Value::String(normalized_url));
                 options.insert("apiKey".to_string(), Value::String(api_key.to_string()));
             }
 
-            if !ag_provider.get("models").map_or(false, |v| v.is_object()) {
-                ag_provider["models"] = serde_json::json!({});
-            }
-            if let Some(models) = ag_provider.get_mut("models").and_then(|m| m.as_object_mut()) {
-                for model_def in &build_model_catalog() {
-                    models.insert(model_def.id.to_string(), build_model_json(model_def));
+            // Always update models from proxy (reflects current proxy model list)
+            if !fetched_models.is_empty() {
+                if let Some(obj) = ag_provider.as_object_mut() {
+                    obj.insert("models".to_string(), Value::Object(fetched_models));
                 }
             }
         }
@@ -208,14 +231,14 @@ pub fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), String
 }
 
 pub fn restore_opencode_config() -> Result<(), String> {
-    let config_path = get_config_path()
-        .ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
+    let config_path =
+        get_config_path().ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
 
-    let backup_path = config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
+    let backup_path =
+        config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
     if backup_path.exists() {
         if config_path.exists() {
-            fs::remove_file(&config_path)
-                .map_err(|e| format!("Failed to remove config: {}", e))?;
+            fs::remove_file(&config_path).map_err(|e| format!("Failed to remove config: {}", e))?;
         }
         fs::rename(&backup_path, &config_path)
             .map_err(|e| format!("Failed to restore config: {}", e))?;
@@ -226,15 +249,21 @@ pub fn restore_opencode_config() -> Result<(), String> {
 }
 
 pub fn read_opencode_config_content() -> Result<String, String> {
-    let config_path = get_config_path()
-        .ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
+    let config_path =
+        get_config_path().ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
 
     if !config_path.exists() {
         return Err(format!("Config file does not exist: {:?}", config_path));
     }
 
-    fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read config: {}", e))
+    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))
+}
+
+pub fn write_opencode_config_content(content: &str) -> Result<(), String> {
+    let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
+    serde_json::from_str::<serde_json::Value>(content)
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
+    fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {}", e))
 }
 
 #[cfg(test)]
@@ -243,27 +272,22 @@ mod tests {
 
     #[test]
     fn test_normalize_base_url() {
-        assert_eq!(normalize_base_url("http://localhost:3000"), "http://localhost:3000/v1");
-        assert_eq!(normalize_base_url("http://localhost:3000/"), "http://localhost:3000/v1");
-        assert_eq!(normalize_base_url("http://localhost:3000/v1"), "http://localhost:3000/v1");
-        assert_eq!(normalize_base_url("http://localhost:3000/v1/"), "http://localhost:3000/v1");
+        assert_eq!(
+            normalize_base_url("http://localhost:3000"),
+            "http://localhost:3000/v1"
+        );
+        assert_eq!(
+            normalize_base_url("http://localhost:3000/"),
+            "http://localhost:3000/v1"
+        );
+        assert_eq!(
+            normalize_base_url("http://localhost:3000/v1"),
+            "http://localhost:3000/v1"
+        );
+        assert_eq!(
+            normalize_base_url("http://localhost:3000/v1/"),
+            "http://localhost:3000/v1"
+        );
         assert_eq!(normalize_base_url("  http://x.com  "), "http://x.com/v1");
-    }
-
-    #[test]
-    fn test_build_model_catalog_not_empty() {
-        let catalog = build_model_catalog();
-        assert!(!catalog.is_empty());
-        assert!(catalog.iter().any(|m| m.id == "claude-sonnet-4-5"));
-    }
-
-    #[test]
-    fn test_build_model_json_structure() {
-        let catalog = build_model_catalog();
-        let model = &catalog[0];
-        let json = build_model_json(model);
-        assert!(json.get("name").is_some());
-        assert!(json.get("limit").is_some());
-        assert!(json.get("modalities").is_some());
     }
 }

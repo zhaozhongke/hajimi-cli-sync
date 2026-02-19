@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="100" ry="100" fill="url(#bg)"/>
+  <!-- Terminal window frame -->
+  <rect x="80" y="100" width="352" height="280" rx="20" ry="20" fill="rgba(255,255,255,0.15)"/>
+  <rect x="80" y="100" width="352" height="50" rx="20" ry="20" fill="rgba(255,255,255,0.25)"/>
+  <rect x="80" y="130" width="352" height="20" fill="rgba(255,255,255,0.25)"/>
+  <!-- Terminal dots -->
+  <circle cx="112" cy="125" r="8" fill="#ff6b6b"/>
+  <circle cx="140" cy="125" r="8" fill="#ffd93d"/>
+  <circle cx="168" cy="125" r="8" fill="#6bcb77"/>
+  <!-- Letter H -->
+  <text x="256" y="295" font-family="SF Pro Display, Helvetica Neue, Arial, sans-serif" font-size="160" font-weight="700" fill="white" text-anchor="middle" dominant-baseline="central">H</text>
+  <!-- Sync arrows (bottom right) -->
+  <g transform="translate(370, 340)" fill="white" opacity="0.9">
+    <!-- Clockwise arrow -->
+    <path d="M0,8 A20,20 0 1,1 20,28" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="22,20 28,30 16,30"/>
+    <!-- Counter-clockwise arrow -->
+    <path d="M40,32 A20,20 0 1,1 20,12" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="18,20 12,10 24,10"/>
+  </g>
+</svg>

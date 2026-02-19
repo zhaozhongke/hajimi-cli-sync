@@ -1,7 +1,20 @@
 {
   "app": {
-    "title": "Hajimi CLI Sync",
-    "subtitle": "一键同步 API 配置到本地 AI CLI 工具"
+    "title": "Hajimi Switch",
+    "subtitle": "哈基米 AI 一键同步工具",
+    "brand": "哈基米 AI",
+    "statusSynced": "已同步 {{count}} 个",
+    "statusNone": "尚未同步",
+    "connected": "已连接",
+    "notConnected": "未连接"
+  },
+  "steps": {
+    "step1": "API 地址",
+    "step1Hint": "输入哈基米代理地址",
+    "step2": "API 密钥",
+    "step2Hint": "粘贴订阅获得的密钥",
+    "step3": "一键同步",
+    "step3Hint": "将配置同步到所有已安装的 AI 工具"
   },
   "settings": {
     "apiUrl": "API 地址",
@@ -10,8 +23,17 @@
     "syncAll": "全部同步",
     "restoreAll": "全部恢复",
     "customModel": "自定义模型 ID...",
+    "currentModel": "当前",
     "apiModelsGroup": "API 模型",
-    "language": "语言"
+    "language": "语言",
+    "urlRequired": "请输入 URL",
+    "urlInvalid": "必须以 http:// 或 https:// 开头",
+    "export": "导出",
+    "import": "导入",
+    "exportSuccess": "设置已导出",
+    "exportFailed": "导出失败",
+    "importSuccess": "设置已导入",
+    "importFailed": "导入失败"
   },
   "cli": {
     "notDetected": "未检测到",
@@ -24,14 +46,28 @@
     "model": "模型",
     "sync": "同步",
     "restore": "恢复",
-    "viewConfig": "查看配置",
-    "syncedModels": "已同步 {{count}} 个模型"
+    "viewConfig": "配置",
+    "syncedModels": "已同步 {{count}} 个模型",
+    "enabled": "参与全部同步",
+    "disabled": "不参与全部同步"
   },
   "config": {
     "title": "{{name}} 配置",
     "close": "关闭",
     "selectFile": "选择文件",
-    "noContent": "暂无配置内容"
+    "noContent": "暂无配置内容",
+    "copy": "复制",
+    "copied": "已复制",
+    "export": "导出",
+    "edit": "编辑",
+    "editing": "编辑中",
+    "save": "保存",
+    "cancel": "取消",
+    "saveTitle": "保存配置",
+    "saveConfirm": "确定要保存对 {{file}} 的修改吗？",
+    "invalidJson": "JSON 格式错误",
+    "saveFailed": "保存失败",
+    "openFolder": "打开文件夹"
   },
   "toast": {
     "syncSuccess": "{{name}} 同步成功",
@@ -40,14 +76,57 @@
     "restoreFailed": "{{name}} 恢复失败: {{error}}",
     "syncAllSuccess": "全部同步完成 ({{success}}/{{total}})",
     "syncAllFailed": "同步完成，部分失败",
-    "noInstalledCli": "未检测到已安装的 CLI 工具",
+    "noInstalledCli": "未检测到已安装的 AI 工具",
     "apiKeyRequired": "请输入 API 密钥",
     "noBackups": "未找到备份文件"
   },
   "confirm": {
-    "restoreTitle": "恢复所有配置",
-    "restoreMessage": "这将把所有 CLI 配置恢复到同步前的状态，确定继续吗？",
+    "restoreTitle": "恢复配置",
+    "restoreMessage": "这将把所有配置恢复到同步前的状态，确定继续吗？",
+    "restoreSingleMessage": "这将把 {{name}} 配置恢复到同步前的状态，确定继续吗？",
     "cancel": "取消",
     "restore": "恢复"
+  },
+  "connection": {
+    "test": "测试",
+    "testing": "测试中...",
+    "success": "连接成功",
+    "failed": "连接失败: {{error}}"
+  },
+  "install": {
+    "install": "安装",
+    "installing": "安装中...",
+    "download": "下载",
+    "installed": "已安装",
+    "failed": "安装失败: {{error}}",
+    "success": "{{name}} 安装成功",
+    "desktopHint": "桌面应用",
+    "extensionHint": "VS Code 扩展",
+    "manualHint": "手动安装",
+    "manualConfigHint": "在应用内手动配置",
+    "quickStart": "快速开始：安装 Claude Code",
+    "quickStartDesc": "Claude Code 是推荐的 CLI 工具。点击即可通过 npm 自动安装。"
+  },
+  "category": {
+    "cli": "命令行工具",
+    "desktop": "桌面应用",
+    "extension": "VS Code 扩展"
+  },
+  "section": {
+    "installed": "已安装",
+    "moreTools": "更多工具",
+    "showMore": "展开 {{count}} 个工具",
+    "showLess": "收起"
+  },
+  "empty": {
+    "title": "未检测到 AI 工具",
+    "description": "安装任意支持的 AI CLI 工具（Claude、Codex、Gemini、Cursor 等），它会自动出现在这里。"
+  },
+  "history": {
+    "title": "同步历史",
+    "sync": "同步",
+    "sync_all": "全部同步",
+    "restore": "恢复",
+    "install": "安装"
   }
 }

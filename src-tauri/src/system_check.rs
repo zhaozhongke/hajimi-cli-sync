@@ -48,7 +48,8 @@ pub fn check_system() -> SystemRequirements {
             severity: IssueSeverity::Error,
             code: "HOME_NOT_FOUND".to_string(),
             message: "Cannot determine home directory".to_string(),
-            fix_hint: "Your user profile may be corrupted. Please contact system administrator.".to_string(),
+            fix_hint: "Your user profile may be corrupted. Please contact system administrator."
+                .to_string(),
         });
     }
 
@@ -95,7 +96,10 @@ pub fn check_system() -> SystemRequirements {
             fix_hint: "Please free up disk space before proceeding.".to_string(),
         });
     } else if disk_space_mb < 500 {
-        warnings.push(format!("Low disk space: {} MB available. Consider freeing up space.", disk_space_mb));
+        warnings.push(format!(
+            "Low disk space: {} MB available. Consider freeing up space.",
+            disk_space_mb
+        ));
     }
 
     // Windows 特定检查
@@ -107,7 +111,9 @@ pub fn check_system() -> SystemRequirements {
                 severity: IssueSeverity::Error,
                 code: "APPDATA_NOT_SET".to_string(),
                 message: "APPDATA environment variable is not set".to_string(),
-                fix_hint: "This is unusual on Windows. Your system configuration may be incomplete.".to_string(),
+                fix_hint:
+                    "This is unusual on Windows. Your system configuration may be incomplete."
+                        .to_string(),
             });
         }
 
@@ -216,7 +222,10 @@ pub fn check_path_length(path: &std::path::Path) -> Result<()> {
     }
 
     if length > 240 {
-        tracing::warn!("[system_check] Path is close to Windows MAX_PATH limit: {} chars", length);
+        tracing::warn!(
+            "[system_check] Path is close to Windows MAX_PATH limit: {} chars",
+            length
+        );
     }
 
     Ok(())

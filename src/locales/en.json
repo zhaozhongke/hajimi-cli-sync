@@ -1,7 +1,20 @@
 {
   "app": {
-    "title": "Hajimi CLI Sync",
-    "subtitle": "One-click sync your API config to local AI CLI tools"
+    "title": "Hajimi Switch",
+    "subtitle": "One-click sync your API config to local AI tools",
+    "brand": "Hajimi AI",
+    "statusSynced": "{{count}} synced",
+    "statusNone": "Not synced yet",
+    "connected": "Connected",
+    "notConnected": "Not connected"
+  },
+  "steps": {
+    "step1": "API Address",
+    "step1Hint": "Enter your Hajimi proxy address",
+    "step2": "API Key",
+    "step2Hint": "Paste the key from your subscription",
+    "step3": "One-click Sync",
+    "step3Hint": "Sync config to all installed AI tools"
   },
   "settings": {
     "apiUrl": "API URL",
@@ -10,8 +23,17 @@
     "syncAll": "Sync All",
     "restoreAll": "Restore All",
     "customModel": "Custom model ID...",
+    "currentModel": "Current",
     "apiModelsGroup": "API Models",
-    "language": "Language"
+    "language": "Language",
+    "urlRequired": "URL is required",
+    "urlInvalid": "Must start with http:// or https://",
+    "export": "Export",
+    "import": "Import",
+    "exportSuccess": "Settings exported",
+    "exportFailed": "Export failed",
+    "importSuccess": "Settings imported",
+    "importFailed": "Import failed"
   },
   "cli": {
     "notDetected": "Not detected",
@@ -24,30 +46,87 @@
     "model": "Model",
     "sync": "Sync",
     "restore": "Restore",
-    "viewConfig": "View Config",
-    "syncedModels": "{{count}} models synced"
+    "viewConfig": "Config",
+    "syncedModels": "{{count}} models synced",
+    "enabled": "Included in Sync All",
+    "disabled": "Excluded from Sync All"
   },
   "config": {
     "title": "{{name}} Config",
     "close": "Close",
     "selectFile": "Select file",
-    "noContent": "No config content"
+    "noContent": "No config content",
+    "copy": "Copy",
+    "copied": "Copied",
+    "export": "Export",
+    "edit": "Edit",
+    "editing": "Editing",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveTitle": "Save Configuration",
+    "saveConfirm": "Are you sure you want to save changes to {{file}}?",
+    "invalidJson": "Invalid JSON",
+    "saveFailed": "Save failed",
+    "openFolder": "Open Folder"
   },
   "toast": {
     "syncSuccess": "{{name}} synced successfully",
     "syncFailed": "{{name}} sync failed: {{error}}",
     "restoreSuccess": "{{name}} restored successfully",
     "restoreFailed": "{{name}} restore failed: {{error}}",
-    "syncAllSuccess": "All CLIs synced ({{success}}/{{total}})",
+    "syncAllSuccess": "All synced ({{success}}/{{total}})",
     "syncAllFailed": "Sync completed with errors",
     "noInstalledCli": "No installed CLI tools detected",
     "apiKeyRequired": "API Key is required",
     "noBackups": "No backup files found"
   },
   "confirm": {
-    "restoreTitle": "Restore All Configs",
+    "restoreTitle": "Restore Config",
     "restoreMessage": "This will restore all CLI configs to their pre-sync state. Are you sure?",
+    "restoreSingleMessage": "This will restore {{name}} config to its pre-sync state. Are you sure?",
     "cancel": "Cancel",
     "restore": "Restore"
+  },
+  "connection": {
+    "test": "Test",
+    "testing": "Testing...",
+    "success": "Connection successful",
+    "failed": "Connection failed: {{error}}"
+  },
+  "install": {
+    "install": "Install",
+    "installing": "Installing...",
+    "download": "Download",
+    "installed": "Installed",
+    "failed": "Install failed: {{error}}",
+    "success": "{{name}} installed successfully",
+    "desktopHint": "Desktop app",
+    "extensionHint": "VS Code extension",
+    "manualHint": "Manual install",
+    "manualConfigHint": "Configure in app settings",
+    "quickStart": "Quick Start: Install Claude Code",
+    "quickStartDesc": "Claude Code is the recommended CLI tool. Click to install it automatically via npm."
+  },
+  "category": {
+    "cli": "CLI Tools",
+    "desktop": "Desktop Apps",
+    "extension": "VS Code Extensions"
+  },
+  "section": {
+    "installed": "Installed",
+    "moreTools": "More Tools",
+    "showMore": "Show {{count}} more tools",
+    "showLess": "Collapse"
+  },
+  "empty": {
+    "title": "No AI tools detected",
+    "description": "Install any supported AI CLI tool (Claude, Codex, Gemini, Cursor, etc.) and it will appear here automatically."
+  },
+  "history": {
+    "title": "Sync History",
+    "sync": "Sync",
+    "sync_all": "Sync All",
+    "restore": "Restore",
+    "install": "Install"
   }
 }

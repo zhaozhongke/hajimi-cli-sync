@@ -1,7 +1,37 @@
 import { useTranslation } from "react-i18next";
-import { MODEL_GROUPS } from "../types";
+import {
+  Terminal, Code, Sparkles, FileCode, Bot, MousePointer,
+  MessageSquare, Cherry, Cpu, FileText, Rabbit, Ruler,
+  Beer, Brain, Zap, Waves, Check, CircleDot,
+  type LucideIcon,
+} from "lucide-react";
 import type { CliInfo, CliStatusResult } from "../types";
-import { useState } from "react";
+import { ModelSelector } from "./ModelSelector";
+
+const iconMap: Record<string, LucideIcon> = {
+  terminal: Terminal,
+  code: Code,
+  sparkles: Sparkles,
+  "file-code": FileCode,
+  bot: Bot,
+  "mouse-pointer": MousePointer,
+  "message-square": MessageSquare,
+  cherry: Cherry,
+  cpu: Cpu,
+  "file-text": FileText,
+  rabbit: Rabbit,
+  ruler: Ruler,
+  beer: Beer,
+  brain: Brain,
+  zap: Zap,
+  waves: Waves,
+};
+
+function CliIcon({ name, className }: { name: string; className?: string }) {
+  const Icon = iconMap[name];
+  if (!Icon) return <CircleDot className={className} />;
+  return <Icon className={className} />;
+}
 
 interface CliCardProps {
   cli: CliInfo;
@@ -9,6 +39,7 @@ interface CliCardProps {
   loading: boolean;
   syncing: boolean;
   restoring: boolean;
+  installing: boolean;
   model: string;
   onModelChange: (model: string) => void;
   apiModels: string[];
@@ -16,6 +47,8 @@ interface CliCardProps {
   onSync: () => void;
   onRestore: () => void;
   onViewConfig: () => void;
+  onInstall: () => void;
+  onDownload: () => void;
 }
 
 export function CliCard({
@@ -24,6 +57,7 @@ export function CliCard({
   loading,
   syncing,
   restoring,
+  installing,
   model,
   onModelChange,
   apiModels,
@@ -31,183 +65,138 @@ export function CliCard({
   onSync,
   onRestore,
   onViewConfig,
+  onInstall,
+  onDownload,
 }: CliCardProps) {
   const { t } = useTranslation();
-  const [showCustom, setShowCustom] = useState(false);
-  const [customModel, setCustomModel] = useState("");
 
   const installed = status?.installed ?? false;
   const version = status?.version;
   const isSynced = status?.is_synced ?? false;
   const hasBackup = status?.has_backup ?? false;
-  const currentUrl = status?.current_base_url;
   const syncedCount = status?.synced_count;
 
-  const useApiModels = apiModels.length > 0;
-  const allHardcoded = MODEL_GROUPS.flatMap((g) => g.models);
-  const isCustomModel = !allHardcoded.includes(model) && (!useApiModels || !apiModels.includes(model)) && model !== "";
+  const canAutoInstall = cli.installType === "npm" || cli.installType === "vscode";
 
   return (
     <div
-      className={`card card-compact bg-base-100 border-l-4 ${cli.color} shadow-sm ${
-        !installed ? "opacity-50" : ""
+      className={`card card-compact bg-base-100 shadow-sm border border-base-300 transition-all hover:shadow-md ${
+        !installed ? "opacity-60" : ""
       }`}
     >
-      <div className="card-body gap-1 p-3">
-        {/* Header */}
+      <div className="card-body gap-1.5 p-3">
+        {/* Header row: icon + name + status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{cli.icon}</span>
-            <span className="font-semibold text-sm">{cli.name}</span>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+              isSynced ? "bg-success/10 text-success" : installed ? "bg-primary/10 text-primary" : "bg-base-300 text-base-content/30"
+            }`}>
+              <CliIcon name={cli.icon} className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <span className="font-semibold text-sm leading-tight">{cli.name}</span>
+              {version && (
+                <span className="text-[10px] opacity-40 ml-1.5">v{version}</span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Status badge */}
+          <div>
             {loading ? (
-              <span className="badge badge-ghost badge-sm">
-                {t("cli.detecting")}
-              </span>
+              <span className="loading loading-dots loading-xs opacity-40" />
             ) : !installed ? (
-              <span className="badge badge-ghost badge-sm">
-                {t("cli.notDetected")}
+              <span className="badge badge-ghost badge-xs">{t("cli.notDetected")}</span>
+            ) : isSynced ? (
+              <span className="badge badge-success badge-xs gap-0.5">
+                <Check className="w-2.5 h-2.5" />
+                {t("cli.synced")}
               </span>
             ) : (
-              <>
-                {version && (
-                  <span className="badge badge-outline badge-sm">
-                    v{version}
-                  </span>
-                )}
-                {isSynced ? (
-                  <span className="badge badge-success badge-sm gap-1">
-                    {t("cli.synced")}
-                  </span>
-                ) : (
-                  <span className="badge badge-warning badge-sm gap-1">
-                    {t("cli.notSynced")}
-                  </span>
-                )}
-              </>
+              <span className="badge badge-warning badge-xs">{t("cli.notSynced")}</span>
             )}
           </div>
         </div>
 
-        {/* Details (only if installed) */}
-        {installed && (
-          <>
-            <div className="text-xs opacity-60 truncate" title={currentUrl || undefined}>
-              {t("cli.currentUrl")}:{" "}
-              <span className="font-mono">
-                {currentUrl || t("cli.noUrl")}
-              </span>
-              {syncedCount != null && syncedCount > 0 && (
-                <span className="ml-2">
-                  ({t("cli.syncedModels", { count: syncedCount })})
-                </span>
-              )}
-            </div>
-
-            {/* Model selector */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs opacity-60 shrink-0">
-                {t("cli.model")}:
-              </span>
-              {showCustom || isCustomModel ? (
-                <div className="join flex-1">
-                  <input
-                    type="text"
-                    className="input input-bordered input-xs join-item w-full"
-                    value={isCustomModel ? model : customModel}
-                    onChange={(e) => {
-                      setCustomModel(e.target.value);
-                      onModelChange(e.target.value);
-                    }}
-                    placeholder="model-id"
-                  />
-                  <button
-                    className="btn btn-xs btn-ghost join-item"
-                    onClick={() => {
-                      setShowCustom(false);
-                      setCustomModel("");
-                      onModelChange("claude-sonnet-4-5");
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <div className="join flex-1">
-                  <select
-                    className="select select-bordered select-xs join-item w-full"
-                    value={model}
-                    onChange={(e) => {
-                      if (e.target.value === "__custom__") {
-                        setShowCustom(true);
-                        setCustomModel("");
-                      } else {
-                        onModelChange(e.target.value);
-                      }
-                    }}
-                  >
-                    {useApiModels ? (
-                      <optgroup label={t("settings.apiModelsGroup")}>
-                        {apiModels.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : (
-                      MODEL_GROUPS.map((group) => (
-                        <optgroup key={group.label} label={group.label}>
-                          {group.models.map((m) => (
-                            <option key={m} value={m}>
-                              {m}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))
-                    )}
-                    <optgroup label="---">
-                      <option value="__custom__">{t("settings.customModel")}</option>
-                    </optgroup>
-                  </select>
-                  {modelsLoading && (
-                    <span className="btn btn-xs btn-ghost join-item no-animation">
-                      <span className="loading loading-spinner loading-xs" />
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-1.5 mt-1">
+        {/* Not installed: install/download action */}
+        {!installed && !loading && (
+          <div className="flex items-center gap-2 mt-0.5">
+            {canAutoInstall ? (
               <button
                 className="btn btn-primary btn-xs flex-1"
-                onClick={onSync}
-                disabled={syncing}
+                onClick={onInstall}
+                disabled={installing}
               >
-                {syncing ? (
-                  <span className="loading loading-spinner loading-xs" />
-                ) : null}
-                {t("cli.sync")}
+                {installing && <span className="loading loading-spinner loading-xs" />}
+                {installing ? t("install.installing") : t("install.install")}
               </button>
+            ) : (
               <button
                 className="btn btn-outline btn-xs flex-1"
-                onClick={onRestore}
-                disabled={restoring || !hasBackup}
+                onClick={onDownload}
               >
-                {restoring ? (
-                  <span className="loading loading-spinner loading-xs" />
-                ) : null}
-                {t("cli.restore")}
+                {t("install.download")}
               </button>
-              <button
-                className="btn btn-ghost btn-xs flex-1"
-                onClick={onViewConfig}
-              >
-                {t("cli.viewConfig")}
-              </button>
-            </div>
+            )}
+          </div>
+        )}
+
+        {/* Installed: sync controls */}
+        {installed && (
+          <>
+            {/* Model selector for syncable tools */}
+            {cli.installType !== "manual-config" && (
+              <div className="flex items-center gap-2 mt-0.5">
+                <ModelSelector
+                  value={model}
+                  onChange={onModelChange}
+                  apiModels={apiModels}
+                  modelsLoading={modelsLoading}
+                  size="xs"
+                />
+              </div>
+            )}
+
+            {/* Synced models count */}
+            {syncedCount != null && syncedCount > 0 && (
+              <div className="text-[10px] opacity-40">
+                {t("cli.syncedModels", { count: syncedCount })}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            {cli.installType !== "manual-config" ? (
+              <div className="flex gap-1 mt-0.5">
+                <button
+                  className={`btn btn-xs flex-1 ${isSynced ? "btn-outline btn-success" : "btn-primary"}`}
+                  onClick={onSync}
+                  disabled={syncing}
+                >
+                  {syncing && <span className="loading loading-spinner loading-xs" />}
+                  {t("cli.sync")}
+                </button>
+                <button
+                  className="btn btn-ghost btn-xs"
+                  onClick={onRestore}
+                  disabled={restoring || !hasBackup}
+                  title={t("cli.restore")}
+                >
+                  {restoring && <span className="loading loading-spinner loading-xs" />}
+                  {t("cli.restore")}
+                </button>
+                <button
+                  className="btn btn-ghost btn-xs"
+                  onClick={onViewConfig}
+                  title={t("cli.viewConfig")}
+                >
+                  {t("cli.viewConfig")}
+                </button>
+              </div>
+            ) : (
+              <div className="text-[10px] opacity-40 mt-0.5">
+                {t("install.manualConfigHint")}
+              </div>
+            )}
           </>
         )}
       </div>

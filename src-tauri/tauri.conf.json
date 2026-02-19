@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hajimi CLI Sync",
+  "productName": "Hajimi Switch",
   "version": "1.0.0",
-  "identifier": "com.hajimi.cli-sync",
+  "identifier": "com.hajimi.switch",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev -- --port 1421",
+    "devUrl": "http://localhost:1421",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "Hajimi CLI Sync",
+        "title": "Hajimi Switch",
         "width": 620,
         "height": 750,
         "resizable": true,

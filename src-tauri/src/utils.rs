@@ -1,10 +1,10 @@
+use fs2::FileExt;
+use serde_json::Value;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
-use fs2::FileExt;
-use serde_json::Value;
 
 use crate::error::{Result, SyncError};
 
@@ -104,6 +104,7 @@ pub fn find_in_common_paths(executable: &str) -> Option<PathBuf> {
         home.join(".bun/install/global/node_modules/.bin"),
         home.join(".npm-global/bin"),
         home.join(".volta/bin"),
+        home.join(".opencode/bin"),
         home.join("bin"),
         PathBuf::from("/opt/homebrew/bin"),
         PathBuf::from("/usr/local/bin"),
@@ -156,7 +157,9 @@ pub fn find_in_common_paths(executable: &str) -> Option<PathBuf> {
 pub fn find_in_common_paths(executable: &str) -> Option<PathBuf> {
     if let Ok(app_data) = env::var("APPDATA") {
         for ext in &["cmd", "exe"] {
-            let path = PathBuf::from(&app_data).join("npm").join(format!("{}.{}", executable, ext));
+            let path = PathBuf::from(&app_data)
+                .join("npm")
+                .join(format!("{}.{}", executable, ext));
             if path.exists() {
                 return Some(path);
             }
@@ -164,7 +167,9 @@ pub fn find_in_common_paths(executable: &str) -> Option<PathBuf> {
     }
     if let Ok(local) = env::var("LOCALAPPDATA") {
         for ext in &["cmd", "exe"] {
-            let path = PathBuf::from(&local).join("pnpm").join(format!("{}.{}", executable, ext));
+            let path = PathBuf::from(&local)
+                .join("pnpm")
+                .join(format!("{}.{}", executable, ext));
             if path.exists() {
                 return Some(path);
             }
@@ -235,6 +240,91 @@ pub fn create_backup(path: &PathBuf, suffix: &str) -> Result<()> {
         reason: e.to_string(),
     })?;
     tracing::info!("[backup] Created: {:?}", backup_path);
+    Ok(())
+}
+
+/// Maximum number of timestamped backups to retain per config file.
+const BACKUP_RETAIN_COUNT: usize = 5;
+
+/// Create a timestamped backup and rotate old backups (keep latest N).
+/// Returns the path to the new backup file.
+pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<PathBuf>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| SyncError::Other("Invalid file path".to_string()))?
+        .to_string_lossy()
+        .to_string();
+
+    let parent = path
+        .parent()
+        .ok_or_else(|| SyncError::Other("Invalid file path".to_string()))?;
+
+    // Also maintain the simple .bak for quick restore (backwards compat)
+    let simple_backup = path.with_file_name(format!("{}{}", file_name, suffix));
+    if !simple_backup.exists() {
+        fs::copy(path, &simple_backup).map_err(|e| SyncError::FileWriteFailed {
+            path: simple_backup.to_string_lossy().to_string(),
+            reason: e.to_string(),
+        })?;
+    }
+
+    // Create timestamped backup: filename.20260218_153045.bak
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let backup_name = format!("{}.{}{}", file_name, timestamp, suffix);
+    let backup_path = parent.join(&backup_name);
+
+    fs::copy(path, &backup_path).map_err(|e| SyncError::FileWriteFailed {
+        path: backup_path.to_string_lossy().to_string(),
+        reason: e.to_string(),
+    })?;
+    tracing::info!("[backup] Created rotated backup: {:?}", backup_path);
+
+    // Cleanup: keep only the latest BACKUP_RETAIN_COUNT timestamped backups
+    cleanup_old_backups(parent, &file_name, suffix)?;
+
+    Ok(Some(backup_path))
+}
+
+/// Remove old timestamped backups, keeping the newest `BACKUP_RETAIN_COUNT`.
+fn cleanup_old_backups(dir: &std::path::Path, base_name: &str, suffix: &str) -> Result<()> {
+    let prefix = format!("{}.", base_name);
+    let suffix_str = suffix.to_string();
+
+    let mut backups: Vec<_> = fs::read_dir(dir)
+        .map_err(|e| SyncError::Other(format!("Failed to read dir: {}", e)))?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            let name = entry.file_name().to_string_lossy().to_string();
+            // Match pattern: base_name.TIMESTAMP.suffix (e.g. settings.json.20260218_153045.antigravity.bak)
+            name.starts_with(&prefix) && name.ends_with(&suffix_str) && name != format!("{}{}", base_name, suffix_str)
+        })
+        .collect();
+
+    if backups.len() <= BACKUP_RETAIN_COUNT {
+        return Ok(());
+    }
+
+    // Sort by modification time (oldest first)
+    backups.sort_by_key(|entry| {
+        entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+    });
+
+    let remove_count = backups.len() - BACKUP_RETAIN_COUNT;
+    for entry in backups.into_iter().take(remove_count) {
+        if let Err(e) = fs::remove_file(entry.path()) {
+            tracing::warn!("[backup] Failed to remove old backup {:?}: {}", entry.path(), e);
+        } else {
+            tracing::info!("[backup] Removed old backup: {:?}", entry.path());
+        }
+    }
+
     Ok(())
 }
 
@@ -410,12 +500,11 @@ pub fn validate_and_repair_json(path: &PathBuf, backup_suffix: &str) -> Result<V
 
             if backup_path.exists() {
                 tracing::info!("[validate_json] Attempting to restore from backup...");
-                let backup_content = fs::read_to_string(&backup_path).map_err(|e| {
-                    SyncError::ConfigCorrupted {
+                let backup_content =
+                    fs::read_to_string(&backup_path).map_err(|e| SyncError::ConfigCorrupted {
                         path: path.to_string_lossy().to_string(),
                         reason: format!("Backup also unreadable: {}", e),
-                    }
-                })?;
+                    })?;
 
                 match serde_json::from_str::<Value>(&backup_content) {
                     Ok(json) => {

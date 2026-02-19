@@ -47,7 +47,10 @@ fn count_synced_models(json: &Value) -> (usize, Option<String>) {
             }
             count += 1;
             if first_url.is_none() {
-                first_url = m.get("baseUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
+                first_url = m
+                    .get("baseUrl")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
             }
         }
     }
@@ -105,13 +108,15 @@ pub fn sync_droid_config(
             .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
     }
 
-    utils::create_backup(&config_path, BACKUP_SUFFIX)?;
+    utils::create_rotated_backup(&config_path, BACKUP_SUFFIX)?;
 
     let mut config: Value = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config: {}", e))?;
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse config: {}", e))?
+        serde_json::from_str(&content).unwrap_or_else(|e| {
+            tracing::warn!("[droid_sync] Config corrupted, starting fresh: {}", e);
+            serde_json::json!({})
+        })
     } else {
         serde_json::json!({})
     };
@@ -121,9 +126,16 @@ pub fn sync_droid_config(
     }
 
     let default_models: Vec<&str> = vec![
-        "claude-sonnet-4-5", "claude-sonnet-4-5-thinking", "claude-opus-4-5-thinking",
-        "gemini-3-pro-high", "gemini-3-pro-low", "gemini-3-flash",
-        "gemini-2.5-flash", "gemini-2.5-pro", "gpt-4o", "o3",
+        "claude-sonnet-4-5",
+        "claude-sonnet-4-5-thinking",
+        "claude-opus-4-5-thinking",
+        "gemini-3-pro-high",
+        "gemini-3-pro-low",
+        "gemini-3-flash",
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gpt-4o",
+        "o3",
     ];
 
     let models_to_sync: Vec<&str> = if let Some(m) = model {
@@ -149,7 +161,8 @@ pub fn sync_droid_config(
     let mut merged = existing_non_ag;
     merged.extend(new_ag_models);
 
-    let obj = config.as_object_mut()
+    let obj = config
+        .as_object_mut()
         .ok_or_else(|| "Internal error: config is not an object".to_string())?;
     obj.insert("customModels".to_string(), Value::Array(merged));
 
@@ -160,8 +173,8 @@ pub fn sync_droid_config(
 }
 
 pub fn restore_droid_config() -> Result<(), String> {
-    let config_path = get_config_path()
-        .ok_or_else(|| "Failed to get Droid config directory".to_string())?;
+    let config_path =
+        get_config_path().ok_or_else(|| "Failed to get Droid config directory".to_string())?;
 
     let backup_path = config_path.with_file_name(format!("{}{}", DROID_CONFIG_FILE, BACKUP_SUFFIX));
     if backup_path.exists() {
@@ -174,15 +187,14 @@ pub fn restore_droid_config() -> Result<(), String> {
 }
 
 pub fn read_droid_config_content() -> Result<String, String> {
-    let config_path = get_config_path()
-        .ok_or_else(|| "Failed to get Droid config directory".to_string())?;
+    let config_path =
+        get_config_path().ok_or_else(|| "Failed to get Droid config directory".to_string())?;
 
     if !config_path.exists() {
         return Ok("{}".to_string());
     }
 
-    fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read config: {}", e))
+    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))
 }
 
 #[cfg(test)]
@@ -219,4 +231,13 @@ mod tests {
         assert_eq!(models[0]["baseUrl"], "https://example.com");
         assert_eq!(models[0]["apiKey"], "sk-test");
     }
+}
+
+pub fn write_droid_config_content(content: &str) -> Result<(), String> {
+    use std::fs;
+    let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
+    serde_json::from_str::<serde_json::Value>(content)
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
+    fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write config: {}", e))
 }

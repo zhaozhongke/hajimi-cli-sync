@@ -3,6 +3,7 @@ use std::process::Command;
 use std::time::Duration;
 
 use crate::error::{Result, SyncError};
+use crate::utils;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -40,8 +41,18 @@ pub async fn auto_install_git() -> Result<()> {
         // Windows: 优先使用winget，fallback到chocolatey
         if check_command_exists("winget") {
             tracing::info!("[auto_installer] Using winget to install Git");
-            run_silent_command("winget", &["install", "Git.Git", "-e", "--silent", "--accept-package-agreements", "--accept-source-agreements"])
-                .await?;
+            run_silent_command(
+                "winget",
+                &[
+                    "install",
+                    "Git.Git",
+                    "-e",
+                    "--silent",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ],
+            )
+            .await?;
         } else if check_command_exists("choco") {
             tracing::info!("[auto_installer] Using chocolatey to install Git");
             run_silent_command("choco", &["install", "git", "-y"]).await?;
@@ -95,8 +106,18 @@ pub async fn auto_install_nodejs() -> Result<()> {
     {
         if check_command_exists("winget") {
             tracing::info!("[auto_installer] Using winget to install Node.js");
-            run_silent_command("winget", &["install", "OpenJS.NodeJS", "-e", "--silent", "--accept-package-agreements", "--accept-source-agreements"])
-                .await?;
+            run_silent_command(
+                "winget",
+                &[
+                    "install",
+                    "OpenJS.NodeJS",
+                    "-e",
+                    "--silent",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ],
+            )
+            .await?;
         } else if check_command_exists("choco") {
             tracing::info!("[auto_installer] Using chocolatey to install Node.js");
             run_silent_command("choco", &["install", "nodejs", "-y"]).await?;
@@ -148,11 +169,44 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
     }
 
     let package_name = match tool {
-        "claude" => "@anthropics/claude-cli",
-        "codex" => "@openai/codex-cli",
-        "gemini" => "@google/generativelanguage",
-        "opencode" => "opencode",
-        "droid" => "@factory/droid-cli",
+        "claude" => "@anthropic-ai/claude-code",
+        "codex" => "@openai/codex",
+        "gemini" => "@google/gemini-cli",
+        // OpenCode is installed from GitHub, not npm
+        "opencode" => {
+            return Err(SyncError::Other(
+                "OpenCode must be installed from GitHub. See: https://github.com/anomalyco/opencode".to_string()
+            ));
+        }
+        // Desktop apps — cannot be installed via npm
+        "chatbox" | "cherry-studio" | "jan" | "cursor" | "lobechat" | "boltai" => {
+            return Err(SyncError::Other(format!(
+                "{} is a desktop application. Please download it from its official website.",
+                tool
+            )));
+        }
+        // VS Code extensions — install via `code --install-extension`
+        "cline" => {
+            return install_vscode_extension("saoudrizwan.claude-dev").await;
+        }
+        "roo-code" => {
+            return install_vscode_extension("rooveterinaryinc.roo-cline").await;
+        }
+        "kilo-code" => {
+            return install_vscode_extension("kilocode.kilo-code").await;
+        }
+        // SillyTavern is a Node.js app, not an npm global package
+        "sillytavern" => {
+            return Err(SyncError::Other(
+                "SillyTavern must be installed via git clone. See: https://docs.sillytavern.app/installation/".to_string()
+            ));
+        }
+        // Droid has no public npm package
+        "droid" => {
+            return Err(SyncError::Other(
+                "Droid must be installed from https://factory.ai".to_string(),
+            ));
+        }
         _ => tool,
     };
 
@@ -162,6 +216,20 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
     run_silent_command("npm", &args).await?;
 
     Ok(())
+}
+
+/// Install a VS Code extension via the `code` CLI
+async fn install_vscode_extension(extension_id: &str) -> Result<()> {
+    if !check_command_exists("code") {
+        return Err(SyncError::Other(
+            "VS Code CLI ('code') not found. Please install VS Code first.".to_string(),
+        ));
+    }
+    tracing::info!(
+        "[auto_installer] Installing VS Code extension: {}",
+        extension_id
+    );
+    run_silent_command("code", &["--install-extension", extension_id, "--force"]).await
 }
 
 /// 检查命令是否存在
@@ -194,34 +262,67 @@ fn check_command_exists(cmd: &str) -> bool {
     }
 }
 
-/// 静默执行命令
+/// 静默执行命令（带超时）
 async fn run_silent_command(cmd: &str, args: &[&str]) -> Result<()> {
-    tracing::debug!("[auto_installer] Running: {} {:?}", cmd, args);
+    run_silent_command_with_timeout(cmd, args, Duration::from_secs(120)).await
+}
 
-    let mut command = Command::new(cmd);
-    command.args(args);
+/// 静默执行命令（可配置超时时间）
+async fn run_silent_command_with_timeout(
+    cmd: &str,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<()> {
+    tracing::debug!(
+        "[auto_installer] Running: {} {:?} (timeout: {:?})",
+        cmd,
+        args,
+        timeout
+    );
 
-    #[cfg(target_os = "windows")]
-    command.creation_flags(CREATE_NO_WINDOW);
+    let cmd_str = cmd.to_string();
+    let args_vec: Vec<String> = args.iter().map(|s| s.to_string()).collect();
 
-    // 异步执行（避免阻塞UI）
-    let output = tokio::task::spawn_blocking(move || command.output())
-        .await
-        .map_err(|e| SyncError::CommandExecutionFailed {
-            command: format!("{} {:?}", cmd, args),
+    let task = tokio::task::spawn_blocking(move || {
+        let mut command = Command::new(&cmd_str);
+        command.args(&args_vec);
+
+        #[cfg(target_os = "windows")]
+        command.creation_flags(CREATE_NO_WINDOW);
+
+        command.output()
+    });
+
+    let cmd_display = format!("{} {:?}", cmd, args);
+
+    let result = match tokio::time::timeout(timeout, task).await {
+        Ok(join_result) => join_result.map_err(|e| SyncError::CommandExecutionFailed {
+            command: cmd_display.clone(),
             reason: e.to_string(),
-        })?;
+        })?,
+        Err(_) => {
+            tracing::error!(
+                "[auto_installer] Command timed out after {:?}: {}",
+                timeout,
+                cmd_display
+            );
+            return Err(SyncError::CommandExecutionFailed {
+                command: cmd_display,
+                reason: format!("Command timed out after {} seconds", timeout.as_secs()),
+            });
+        }
+    };
 
-    let result = output.map_err(|e| SyncError::CommandExecutionFailed {
-        command: format!("{} {:?}", cmd, args),
+    let output = result.map_err(|e| SyncError::CommandExecutionFailed {
+        command: cmd_display.clone(),
         reason: e.to_string(),
     })?;
 
-    if !result.status.success() {
-        let stderr = String::from_utf8_lossy(&result.stderr);
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         tracing::error!("[auto_installer] Command failed: {}", stderr);
         return Err(SyncError::CommandExecutionFailed {
-            command: format!("{} {:?}", cmd, args),
+            command: cmd_display,
             reason: stderr.to_string(),
         });
     }
@@ -256,10 +357,15 @@ async fn download_portable_git() -> Result<()> {
         .build()
         .map_err(|e| SyncError::Other(e.to_string()))?;
 
-    let response = client.get(url).send().await
+    let response = client
+        .get(url)
+        .send()
+        .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
 
-    let bytes = response.bytes().await
+    let bytes = response
+        .bytes()
+        .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
 
     let zip_path = git_dir.join("mingit.zip");
@@ -286,14 +392,16 @@ async fn download_portable_git() -> Result<()> {
 
 #[cfg(not(target_os = "windows"))]
 async fn download_portable_git() -> Result<()> {
-    Err(SyncError::Other("Portable Git only available on Windows".to_string()))
+    Err(SyncError::Other(
+        "Portable Git only available on Windows".to_string(),
+    ))
 }
 
 /// 解压ZIP文件
 #[cfg(target_os = "windows")]
 fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<()> {
-    use zip::ZipArchive;
     use std::fs::File;
+    use zip::ZipArchive;
 
     let file = File::open(zip_path).map_err(|e| SyncError::FileReadFailed {
         path: zip_path.to_string_lossy().to_string(),
@@ -303,7 +411,9 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<()>
     let mut archive = ZipArchive::new(file).map_err(|e| SyncError::Other(e.to_string()))?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| SyncError::Other(e.to_string()))?;
+        let mut file = archive
+            .by_index(i)
+            .map_err(|e| SyncError::Other(e.to_string()))?;
         let outpath = dest.join(file.name());
 
         if file.is_dir() {
@@ -313,9 +423,11 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<()>
             })?;
         } else {
             if let Some(parent) = outpath.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| SyncError::DirectoryCreationFailed {
-                    path: parent.to_string_lossy().to_string(),
-                    reason: e.to_string(),
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    SyncError::DirectoryCreationFailed {
+                        path: parent.to_string_lossy().to_string(),
+                        reason: e.to_string(),
+                    }
                 })?;
             }
             let mut outfile = File::create(&outpath).map_err(|e| SyncError::FileWriteFailed {
@@ -396,10 +508,15 @@ async fn download_and_extract(url: &str, dest: &std::path::Path) -> Result<()> {
         .build()
         .map_err(|e| SyncError::Other(e.to_string()))?;
 
-    let response = client.get(url).send().await
+    let response = client
+        .get(url)
+        .send()
+        .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
 
-    let bytes = response.bytes().await
+    let bytes = response
+        .bytes()
+        .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
 
     let temp_file = dest.join("download.tmp");
@@ -426,7 +543,8 @@ async fn download_and_extract(url: &str, dest: &std::path::Path) -> Result<()> {
 fn extract_tar(archive_path: &std::path::Path, dest: &std::path::Path) -> Result<()> {
     use std::process::Command;
 
-    let extension = archive_path.extension()
+    let extension = archive_path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
 
@@ -549,7 +667,8 @@ pub async fn auto_install_dependencies() -> std::result::Result<Vec<InstallProgr
 /// Tauri command: 安装特定CLI工具
 #[tauri::command]
 pub async fn install_cli_tool(tool: String) -> std::result::Result<InstallProgress, String> {
-    if check_command_exists(&tool) {
+    // Use enhanced detection (same as get_all_cli_status) to avoid false negatives
+    if utils::resolve_executable(&tool).is_some() || check_command_exists(&tool) {
         return Ok(InstallProgress {
             tool: tool.clone(),
             status: InstallStatus::Skipped,

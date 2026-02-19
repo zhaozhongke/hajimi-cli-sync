@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use thiserror::Error;
 
 /// 主错误类型，提供详细的错误信息和用户友好的修复建议
@@ -128,19 +127,49 @@ pub fn get_install_hint(tool: &str) -> String {
             }
         }
         "claude" => {
-            "Install Claude CLI:\nnpm install -g @anthropic-ai/claude-cli\n\nOr follow: https://docs.anthropic.com/cli".to_string()
+            "Install Claude Code:\nnpm install -g @anthropic-ai/claude-code\n\nOr follow: https://docs.anthropic.com/en/docs/claude-code".to_string()
         }
         "codex" => {
-            "Install Codex CLI:\nnpm install -g @openai/codex-cli\n\nOr follow OpenAI documentation".to_string()
+            "Install Codex CLI:\nnpm install -g @openai/codex\n\nOr follow: https://github.com/openai/codex".to_string()
         }
         "gemini" => {
-            "Install Gemini CLI:\nnpm install -g @google/gemini-cli\n\nOr follow Google AI documentation".to_string()
+            "Install Gemini CLI:\nnpm install -g @google/gemini-cli\n\nOr follow: https://github.com/google-gemini/gemini-cli".to_string()
         }
         "opencode" => {
-            "Install OpenCode:\nnpm install -g opencode\n\nOr visit: https://opencode.ai/docs".to_string()
+            "Install OpenCode from GitHub:\nhttps://github.com/anomalyco/opencode\n\nSee the README for installation instructions.".to_string()
         }
         "droid" => {
-            "Install Droid:\nnpm install -g @factory/droid\n\nOr visit: https://factory.ai/docs".to_string()
+            "Download Droid from: https://factory.ai".to_string()
+        }
+        "cursor" => {
+            "Download Cursor from: https://cursor.com/downloads".to_string()
+        }
+        "chatbox" => {
+            "Download Chatbox from: https://chatboxai.app".to_string()
+        }
+        "cherry-studio" => {
+            "Download Cherry Studio from: https://cherry-ai.com".to_string()
+        }
+        "jan" => {
+            "Download Jan from: https://jan.ai/download".to_string()
+        }
+        "cline" => {
+            "Install Cline extension in VS Code:\ncode --install-extension saoudrizwan.claude-dev".to_string()
+        }
+        "roo-code" => {
+            "Install Roo Code extension in VS Code:\ncode --install-extension rooveterinaryinc.roo-cline".to_string()
+        }
+        "kilo-code" => {
+            "Install Kilo Code extension in VS Code:\ncode --install-extension kilocode.kilo-code".to_string()
+        }
+        "sillytavern" => {
+            "Install SillyTavern:\ngit clone https://github.com/SillyTavern/SillyTavern\n\nSee: https://docs.sillytavern.app/installation/".to_string()
+        }
+        "lobechat" => {
+            "Download LobeChat from: https://lobehub.com/download".to_string()
+        }
+        "boltai" => {
+            "Download BoltAI from: https://boltai.com (macOS only)".to_string()
         }
         _ => format!("Search for '{tool} installation guide' for your platform"),
     }
@@ -164,7 +193,10 @@ mod tests {
 
     #[test]
     fn test_recoverable_errors() {
-        assert!(SyncError::FileLocked { path: "test".to_string() }.is_recoverable());
+        assert!(SyncError::FileLocked {
+            path: "test".to_string()
+        }
+        .is_recoverable());
         assert!(!SyncError::HomeDirectoryNotFound.is_recoverable());
     }
 
