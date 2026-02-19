@@ -7,7 +7,9 @@
     "statusSynced": "{{count}} synced",
     "statusNone": "Not synced yet",
     "connected": "Connected",
-    "notConnected": "Not connected"
+    "notConnected": "Not connected",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode"
   },
   "steps": {
     "step1": "API Address",
@@ -34,7 +36,10 @@
     "exportSuccess": "Settings exported",
     "exportFailed": "Export failed",
     "importSuccess": "Settings imported",
-    "importFailed": "Import failed"
+    "importFailed": "Import failed",
+    "httpWarning": "Warning: http:// sends your API key in cleartext. Use https:// instead.",
+    "saveApiKey": "Remember key",
+    "saveApiKeyHint": "When off, key is kept in memory only and not written to disk"
   },
   "cli": {
     "notDetected": "Not detected",
@@ -76,7 +81,7 @@
     "claude": "After sync, the VS Code extension (Claude Code) is also configured automatically — no extra steps needed",
     "openclaw": "After sync, run 'openclaw onboard' in terminal to complete first-time setup (gateway & messaging channels)",
     "sillytavern": "After sync, select the configured API connection in SillyTavern's UI",
-    "cherryStudio": "After sync, switch to the \"Hajimi Proxy\" provider in Cherry Studio to use it",
+    "cherryStudio": "After sync, switch to the \"哈基米 AI\" provider in Cherry Studio to use it",
     "cursor": "Cursor does not support auto-configuration yet — please configure manually in Settings → Models",
     "cline": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
     "rooCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
@@ -212,6 +217,7 @@
     "errLoginFailed": "Login failed, please try again",
     "errNoSessionCookie": "Server did not return session credentials, check platform version",
     "errInvalidResponse": "Server returned unexpected data",
-    "errInternalError": "Internal error, please try again"
+    "errInternalError": "Internal error, please try again",
+    "goTopup": "Go to top-up / purchase →"
   }
 }

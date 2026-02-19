@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { save, open } from "@tauri-apps/plugin-dialog";
@@ -21,6 +21,8 @@ interface SettingsPanelProps {
   modelsError: string | null;
   perCliModels: Record<string, string>;
   onPerCliModelsChange: (models: Record<string, string>) => void;
+  saveApiKey: boolean;
+  onSaveApiKeyChange: (save: boolean) => void;
 }
 
 export function SettingsPanel({
@@ -35,6 +37,8 @@ export function SettingsPanel({
   modelsError,
   perCliModels,
   onPerCliModelsChange,
+  saveApiKey,
+  onSaveApiKeyChange,
 }: SettingsPanelProps) {
   const { t } = useTranslation();
   const [authMode, setAuthMode] = useState<AuthMode>(
@@ -55,6 +59,19 @@ export function SettingsPanel({
     if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://"))
       return t("settings.urlInvalid");
     return null;
+  }, [url, t]);
+
+  // Warn when user enters an http:// (non-TLS) URL — credentials sent in cleartext
+  const prevUrlRef = useRef<string>("");
+  useEffect(() => {
+    const trimmed = url.trim();
+    if (
+      trimmed.startsWith("http://") &&
+      !prevUrlRef.current.startsWith("http://")
+    ) {
+      toast.warning(t("settings.httpWarning"));
+    }
+    prevUrlRef.current = trimmed;
   }, [url, t]);
 
   // Determine which step user is on (manual mode only)
@@ -246,6 +263,22 @@ export function SettingsPanel({
                 )}
               </button>
             </div>
+          </div>
+
+          {/* Remember key toggle */}
+          <div className="flex items-center justify-between px-0.5">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none" title={t("settings.saveApiKeyHint")}>
+              <input
+                type="checkbox"
+                className="toggle toggle-xs toggle-primary"
+                checked={saveApiKey}
+                onChange={(e) => onSaveApiKeyChange(e.target.checked)}
+              />
+              <span className="text-xs opacity-60">{t("settings.saveApiKey")}</span>
+            </label>
+            {!saveApiKey && (
+              <span className="text-[10px] opacity-40 italic">{t("settings.saveApiKeyHint")}</span>
+            )}
           </div>
 
           {/* Step 3: Default Model */}

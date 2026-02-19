@@ -5,11 +5,11 @@
 
 /* ── Custom color overrides: warm indigo palette ── */
 [data-theme="hajimi-light"] {
-  --color-primary: oklch(0.5 0.2 270);
+  --color-primary: oklch(0.511 0.234 276);
   --color-primary-content: oklch(1 0 0);
-  --color-secondary: oklch(0.52 0.18 295);
+  --color-secondary: oklch(0.491 0.27 292);
   --color-secondary-content: oklch(1 0 0);
-  --color-accent: oklch(0.58 0.16 230);
+  --color-accent: oklch(0.715 0.143 215);
   --color-accent-content: oklch(1 0 0);
   --color-neutral: oklch(0.22 0.02 260);
   --color-neutral-content: oklch(0.98 0 0);
@@ -29,12 +29,12 @@
 }
 
 [data-theme="hajimi-dark"] {
-  --color-primary: oklch(0.72 0.14 270);
-  --color-primary-content: oklch(0.13 0.03 270);
-  --color-secondary: oklch(0.72 0.13 295);
-  --color-secondary-content: oklch(0.13 0.03 295);
-  --color-accent: oklch(0.76 0.11 210);
-  --color-accent-content: oklch(0.13 0.02 210);
+  --color-primary: oklch(0.68 0.2 276);
+  --color-primary-content: oklch(0.13 0.03 276);
+  --color-secondary: oklch(0.65 0.22 292);
+  --color-secondary-content: oklch(0.13 0.03 292);
+  --color-accent: oklch(0.78 0.13 215);
+  --color-accent-content: oklch(0.13 0.02 215);
   --color-neutral: oklch(0.22 0.025 260);
   --color-neutral-content: oklch(0.82 0.01 260);
   --color-base-100: oklch(0.16 0.02 265);
@@ -123,16 +123,16 @@ body {
 .card-hover:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 4px 12px -2px oklch(0.5 0.05 270 / 0.08),
+    0 4px 12px -2px oklch(0.511 0.234 276 / 0.08),
     0 2px 4px -2px oklch(0.4 0 0 / 0.04);
-  border-color: oklch(0.7 0.08 270 / 0.3);
+  border-color: oklch(0.511 0.234 276 / 0.3);
 }
 
 [data-theme="hajimi-dark"] .card-hover:hover {
   box-shadow:
     0 4px 12px -2px oklch(0 0 0 / 0.3),
     0 2px 4px -2px oklch(0 0 0 / 0.2);
-  border-color: oklch(0.5 0.06 270 / 0.3);
+  border-color: oklch(0.511 0.234 276 / 0.3);
 }
 
 /* Tab glow for active tab */
@@ -147,6 +147,6 @@ body {
   left: 25%;
   right: 25%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, oklch(0.65 0.15 270 / 0.6), transparent);
+  background: linear-gradient(90deg, transparent, oklch(0.511 0.234 276 / 0.7), transparent);
   border-radius: 1px;
 }

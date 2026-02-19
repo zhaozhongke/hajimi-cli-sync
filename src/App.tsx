@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
-import { Zap, Check, ExternalLink, Sun, Moon } from "lucide-react";
+import { Check, ExternalLink, Sun, Moon } from "lucide-react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CliCard } from "./components/CliCard";
 import { ConfigViewer } from "./components/ConfigViewer";
@@ -41,7 +41,13 @@ function App() {
   const isDark = theme === "hajimi-dark";
 
   const [url, setUrl] = useState(() => localStorage.getItem("hajimi-url") || DEFAULT_URL);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("hajimi-key") || "");
+  const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("hajimi-save-key") !== "false");
+  const [apiKey, setApiKey] = useState(() =>
+    // Only restore from localStorage if "remember key" is enabled
+    localStorage.getItem("hajimi-save-key") !== "false"
+      ? localStorage.getItem("hajimi-key") || ""
+      : ""
+  );
   const [defaultModel, setDefaultModel] = useState(() => localStorage.getItem("hajimi-model") || DEFAULT_MODEL);
   const [perCliModels, setPerCliModels] = useState<Record<string, string>>(() => {
     try {
@@ -77,7 +83,14 @@ function App() {
 
   // Persist settings
   useEffect(() => { localStorage.setItem("hajimi-url", url); }, [url]);
-  useEffect(() => { localStorage.setItem("hajimi-key", apiKey); }, [apiKey]);
+  useEffect(() => {
+    localStorage.setItem("hajimi-save-key", String(saveApiKey));
+    if (saveApiKey) {
+      localStorage.setItem("hajimi-key", apiKey);
+    } else {
+      localStorage.removeItem("hajimi-key");
+    }
+  }, [apiKey, saveApiKey]);
   useEffect(() => { localStorage.setItem("hajimi-model", defaultModel); }, [defaultModel]);
   useEffect(() => { localStorage.setItem("hajimi-cli-models", JSON.stringify(perCliModels)); }, [perCliModels]);
 
@@ -235,7 +248,7 @@ function App() {
             const encoded = encodeURIComponent(base64);
             const deepLink = cli.deepLinkTemplate.replace("{config}", encoded);
             invoke("open_external_url", { url: deepLink });
-            toast.success(t("toast.syncSuccess", { name: cli.name }));
+            toast.info(t("toast.syncSuccess", { name: cli.name }));
             return;
           }
           syncOne(cli.id, url, apiKey, getModelForCli(cli.id), cli.name);
@@ -276,9 +289,25 @@ function App() {
           {/* Branded Header — two rows for clarity */}
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center text-white shadow-md shadow-primary/20 shrink-0 aspect-square">
-                <Zap className="w-4.5 h-4.5" />
-              </div>
+              {/* App logo — exact match to app icon: indigo→violet→cyan gradient + lightning */}
+              <svg
+                width="36" height="36" viewBox="0 0 512 512"
+                xmlns="http://www.w3.org/2000/svg"
+                className="shrink-0 shadow-md rounded-xl"
+                style={{ filter: "drop-shadow(0 2px 6px #6366f140)" }}
+              >
+                <defs>
+                  <linearGradient id="app-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%"   stopColor="#6366f1" />
+                    <stop offset="50%"  stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#06b6d4" />
+                  </linearGradient>
+                </defs>
+                <rect width="512" height="512" rx="108" ry="108" fill="url(#app-logo-grad)" />
+                <g transform="translate(136, 56) scale(10)" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="white" stroke="white" />
+                </g>
+              </svg>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base font-bold leading-tight tracking-tight truncate">
                   {t("app.title")}
@@ -314,7 +343,7 @@ function App() {
                 <button
                   className="btn btn-ghost btn-xs btn-square opacity-50 hover:opacity-100 transition-opacity"
                   onClick={toggleTheme}
-                  title={isDark ? "Light mode" : "Dark mode"}
+                  title={isDark ? t("app.lightMode") : t("app.darkMode")}
                 >
                   {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 </button>
@@ -343,6 +372,8 @@ function App() {
                 modelsError={modelsError}
                 perCliModels={perCliModels}
                 onPerCliModelsChange={setPerCliModels}
+                saveApiKey={saveApiKey}
+                onSaveApiKeyChange={setSaveApiKey}
               />
             </div>
           </div>

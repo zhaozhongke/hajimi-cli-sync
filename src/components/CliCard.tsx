@@ -103,7 +103,7 @@ export function CliCard({
             </div>
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="font-semibold text-sm leading-tight">{cli.name}</span>
+                <span className="font-semibold text-sm leading-tight truncate">{cli.name}</span>
                 {version && (
                   <span className="text-[10px] opacity-35 font-mono">v{version}</span>
                 )}

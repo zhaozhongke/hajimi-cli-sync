@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hajimi Switch",
+  "productName": "哈基米 Switch",
   "version": "1.0.0",
   "identifier": "com.hajimi.switch",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "Hajimi Switch",
+        "title": "哈基米 Switch",
         "width": 1000,
         "height": 750,
         "resizable": true,

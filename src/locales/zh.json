@@ -7,7 +7,9 @@
     "statusSynced": "已同步 {{count}} 个",
     "statusNone": "尚未同步",
     "connected": "已连接",
-    "notConnected": "未连接"
+    "notConnected": "未连接",
+    "lightMode": "浅色模式",
+    "darkMode": "深色模式"
   },
   "steps": {
     "step1": "API 地址",
@@ -34,7 +36,10 @@
     "exportSuccess": "设置已导出",
     "exportFailed": "导出失败",
     "importSuccess": "设置已导入",
-    "importFailed": "导入失败"
+    "importFailed": "导入失败",
+    "httpWarning": "警告：使用 http:// 时 API 密钥将以明文传输，建议改用 https://",
+    "saveApiKey": "记住密钥",
+    "saveApiKeyHint": "关闭后密钥仅在本次会话保留，不写入磁盘"
   },
   "cli": {
     "notDetected": "未检测到",
@@ -76,7 +81,7 @@
     "claude": "同步后 VS Code 插件（Claude Code extension）也会自动生效，无需额外配置",
     "openclaw": "同步完成后，还需在终端运行 openclaw onboard 完成首次设置（选择网关、连接消息渠道）",
     "sillytavern": "同步完成后，需在 SillyTavern 界面中选择已配置的 API 连接",
-    "cherryStudio": "同步完成后，需在 Cherry Studio 中切换到「Hajimi Proxy」渠道才能生效",
+    "cherryStudio": "同步完成后，需在 Cherry Studio 中切换到「哈基米 AI」渠道才能生效",
     "cursor": "Cursor 暂不支持自动配置，请自行在 Settings → Models 中研究配置方式",
     "cline": "扩展侧边栏 → 设置 → API Provider 选 \"OpenAI Compatible\" → 填入 Base URL 和 API Key",
     "rooCode": "扩展侧边栏 → 设置 → API Provider 选 \"OpenAI Compatible\" → 填入 Base URL 和 API Key",
@@ -212,6 +217,7 @@
     "errLoginFailed": "登录失败，请重试",
     "errNoSessionCookie": "服务器未返回登录凭证，请检查平台版本",
     "errInvalidResponse": "服务器返回了异常数据",
-    "errInternalError": "内部错误，请重试"
+    "errInternalError": "内部错误，请重试",
+    "goTopup": "前往充值 / 购买套餐 →"
   }
 }

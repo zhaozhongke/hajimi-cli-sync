@@ -302,8 +302,14 @@ export function AccountLogin({
 
       {/* Token list */}
       {tokens.length === 0 && !loading && (
-        <div className="text-center text-xs opacity-50 py-4">
-          {t("account.noTokens")}
+        <div className="text-center text-xs opacity-50 py-4 space-y-1">
+          <div>{t("account.noTokens")}</div>
+          <button
+            className="link link-primary text-xs"
+            onClick={() => invoke("open_external_url", { url: `${platformUrl}/topup` })}
+          >
+            {t("account.goTopup")}
+          </button>
         </div>
       )}
 

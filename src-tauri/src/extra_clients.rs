@@ -103,7 +103,7 @@ impl ExtraClient {
             Self::ClaudeVSCode => vec!["settings.json".to_string()],
             Self::Chatbox => vec!["config.json".to_string()],
             Self::CherryStudio => vec!["config.json".to_string()],
-            Self::Jan => vec!["settings.json".to_string()],
+            Self::Jan => vec!["openai.json".to_string()],
             Self::Cursor => vec!["(app settings)".to_string()],
             Self::Cline | Self::RooCode | Self::KiloCode => {
                 vec!["(extension settings)".to_string()]
@@ -167,14 +167,8 @@ fn cherry_config_path() -> Option<PathBuf> {
 
 fn jan_config_path() -> Option<PathBuf> {
     let home = home_dir()?;
-    // Jan default data dir is ~/jan on all platforms
-    let jan_dir = home.join("jan");
-    if jan_dir.exists() {
-        return Some(jan_dir.join("settings.json"));
-    }
-    // Fallback: Application Support
-    let app_sup = app_support_dir()?;
-    Some(app_sup.join("Jan").join("settings.json"))
+    // Jan stores OpenAI-compatible engine config at ~/jan/engines/openai.json
+    Some(home.join("jan").join("engines").join("openai.json"))
 }
 
 fn cursor_config_path() -> Option<PathBuf> {
@@ -517,10 +511,14 @@ fn check_jan_synced(
 ) -> (bool, bool, Option<String>) {
     let json: Value = serde_json::from_str(content).unwrap_or_default();
 
+    // Jan engine config uses "full_url" (ends with /chat/completions) and "api_key"
     let current_url = json
-        .get("hajimi_proxy_url")
+        .get("full_url")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(|s| {
+            // Normalise: strip trailing /chat/completions to get base URL
+            s.trim_end_matches("/chat/completions").to_string()
+        });
 
     let is_synced = current_url
         .as_deref()
@@ -679,7 +677,7 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
     // Build our provider entry
     let mut provider = serde_json::json!({
         "id": HAJIMI_MARKER,
-        "name": "Hajimi Proxy",
+        "name": "哈基米 AI",
         "type": "openai",
         "apiHost": proxy_url,
         "apiKey": api_key,
@@ -713,32 +711,29 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
     utils::atomic_write(&config_path, &content).map_err(|e| e.to_string())
 }
 
-fn sync_jan(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<(), String> {
+fn sync_jan(proxy_url: &str, api_key: &str, _model: Option<&str>) -> Result<(), String> {
     let config_path = jan_config_path().ok_or("Failed to determine Jan config directory")?;
 
     ensure_parent_dir(&config_path)?;
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
 
-    let mut config: Value = read_or_empty_json(&config_path);
-
-    if !config.is_object() {
-        config = serde_json::json!({});
-    }
-
-    let obj = config.as_object_mut().unwrap();
-
-    // Store proxy settings in a hajimi-specific section
-    obj.insert(
-        "hajimi_proxy_url".to_string(),
-        Value::String(proxy_url.to_string()),
+    // Jan engine config format (~/jan/engines/openai.json):
+    // { "full_url": "https://proxy/v1/chat/completions", "api_key": "sk-..." }
+    let full_url = format!(
+        "{}/chat/completions",
+        proxy_url.trim_end_matches('/').trim_end_matches("/v1")
     );
-    obj.insert(
-        "hajimi_api_key".to_string(),
-        Value::String(api_key.to_string()),
-    );
-    if let Some(m) = model {
-        obj.insert("hajimi_model".to_string(), Value::String(m.to_string()));
-    }
+    // Ensure /v1 is present before /chat/completions
+    let full_url = if full_url.contains("/v1/") {
+        full_url
+    } else {
+        full_url.replace("/chat/completions", "/v1/chat/completions")
+    };
+
+    let config = serde_json::json!({
+        "full_url": full_url,
+        "api_key": api_key,
+    });
 
     let content = utils::to_json_pretty(&config).map_err(|e| e.to_string())?;
     utils::atomic_write(&config_path, &content).map_err(|e| e.to_string())
@@ -1011,7 +1006,7 @@ mod tests {
 
         let new_provider = serde_json::json!({
             "id": "hajimi",
-            "name": "Hajimi Proxy",
+            "name": "哈基米 AI",
             "type": "openai",
             "apiHost": "https://new.proxy",
             "apiKey": "sk-new",
@@ -1036,23 +1031,28 @@ mod tests {
 
     #[test]
     fn test_jan_sync_fields() {
-        let mut config = serde_json::json!({
-            "existing_setting": true
+        // Jan engine config uses full_url (with /chat/completions) and api_key
+        let proxy_url = "https://proxy.test/v1";
+        let api_key = "sk-test";
+        let full_url = format!(
+            "{}/chat/completions",
+            proxy_url.trim_end_matches('/').trim_end_matches("/v1")
+        );
+        let full_url = if full_url.contains("/v1/") {
+            full_url
+        } else {
+            full_url.replace("/chat/completions", "/v1/chat/completions")
+        };
+
+        let config = serde_json::json!({
+            "full_url": full_url,
+            "api_key": api_key,
         });
 
-        let obj = config.as_object_mut().unwrap();
-        obj.insert(
-            "hajimi_proxy_url".to_string(),
-            Value::String("https://proxy.test".to_string()),
-        );
-        obj.insert(
-            "hajimi_api_key".to_string(),
-            Value::String("sk-test".to_string()),
-        );
-
-        assert_eq!(config["existing_setting"], true);
-        assert_eq!(config["hajimi_proxy_url"], "https://proxy.test");
-        assert_eq!(config["hajimi_api_key"], "sk-test");
+        assert_eq!(config["full_url"], "https://proxy.test/v1/chat/completions");
+        assert_eq!(config["api_key"], "sk-test");
+        // Must NOT contain old hajimi_* keys
+        assert!(config.get("hajimi_proxy_url").is_none());
     }
 
     #[test]
