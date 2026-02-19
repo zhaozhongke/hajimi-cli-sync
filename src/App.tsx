@@ -304,8 +304,8 @@ function App() {
                   </linearGradient>
                 </defs>
                 <rect width="512" height="512" rx="108" ry="108" fill="url(#app-logo-grad)" />
-                <g transform="translate(136, 56) scale(10)" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="white" stroke="white" />
+                <g transform="translate(256,256) scale(13) translate(-12,-12)" fill="white" stroke="none">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </g>
               </svg>
               <div className="min-w-0 flex-1">

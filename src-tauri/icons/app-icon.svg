@@ -1,15 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1"/>
-      <stop offset="50%" style="stop-color:#8b5cf6"/>
+      <stop offset="0%"   style="stop-color:#6366f1"/>
+      <stop offset="50%"  style="stop-color:#8b5cf6"/>
       <stop offset="100%" style="stop-color:#06b6d4"/>
     </linearGradient>
   </defs>
-  <!-- Rounded square background: matches from-primary via-secondary to-accent -->
+  <!-- Rounded square background -->
   <rect width="512" height="512" rx="108" ry="108" fill="url(#bg)"/>
-  <!-- Zap / lightning bolt icon (Lucide Zap, scaled to center) -->
-  <g transform="translate(136, 56) scale(10)" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="white" stroke="white"/>
+  <!--
+    Lucide Zap polygon in 24x24 space, center at (12,12).
+    Strategy: translate(-12,-12) to center on origin, scale(13) → 312px span,
+    then translate(256,256) to canvas center.
+    Result: icon occupies ~60% of canvas, visually centered.
+  -->
+  <g transform="translate(256,256) scale(13) translate(-12,-12)"
+     fill="white" stroke="none">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
   </g>
 </svg>
