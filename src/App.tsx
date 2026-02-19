@@ -14,7 +14,7 @@ import { CLI_LIST } from "./types";
 import type { CliInfo, CliStatusResult } from "./types";
 import type { CliCategory } from "./types";
 
-const DEFAULT_URL = "https://free.aipro.love";
+const DEFAULT_URL = "https://vip.aipro.love";
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const APP_VERSION = "1.0.0";
 
