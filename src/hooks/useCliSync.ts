@@ -157,8 +157,16 @@ export function useCliSync() {
   );
 
   const installOne = useCallback(
-    async (app: string, url: string, name: string) => {
+    async (app: string, url: string, name: string, downloadUrl?: string) => {
       setInstalling((prev) => ({ ...prev, [app]: true }));
+      const handleFail = (error: string) => {
+        if (downloadUrl) {
+          toast.info(t("install.failedOpenDownload", { name }));
+          invoke("open_external_url", { url: downloadUrl });
+        } else {
+          toast.error(t("install.failed", { error }));
+        }
+      };
       try {
         const result = await invoke<{
           tool: string;
@@ -167,7 +175,7 @@ export function useCliSync() {
           message: string;
         }>("install_cli_tool", { tool: app });
         if (result.status === "failed") {
-          toast.error(t("install.failed", { error: result.message }));
+          handleFail(result.message);
           appendLog({ action: "install", app: name, success: false, detail: result.message });
         } else {
           toast.success(t("install.success", { name }));
@@ -182,7 +190,7 @@ export function useCliSync() {
         }
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
-        toast.error(t("install.failed", { error }));
+        handleFail(error);
       } finally {
         setInstalling((prev) => ({ ...prev, [app]: false }));
       }

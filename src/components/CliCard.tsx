@@ -39,7 +39,6 @@ interface CliCardProps {
   loading: boolean;
   syncing: boolean;
   restoring: boolean;
-  installing: boolean;
   model: string;
   onModelChange: (model: string) => void;
   apiModels: string[];
@@ -47,8 +46,7 @@ interface CliCardProps {
   onSync: () => void;
   onRestore: () => void;
   onViewConfig: () => void;
-  onInstall: () => void;
-  onDownload: () => void;
+  onOpenDownload?: () => void;
   onLaunch?: () => void;
   onCommunity?: () => void;
 }
@@ -59,7 +57,6 @@ export function CliCard({
   loading,
   syncing,
   restoring,
-  installing,
   model,
   onModelChange,
   apiModels,
@@ -67,8 +64,7 @@ export function CliCard({
   onSync,
   onRestore,
   onViewConfig,
-  onInstall,
-  onDownload,
+  onOpenDownload,
   onLaunch,
   onCommunity,
 }: CliCardProps) {
@@ -79,8 +75,6 @@ export function CliCard({
   const isSynced = status?.is_synced ?? false;
   const hasBackup = status?.has_backup ?? false;
   const syncedCount = status?.synced_count;
-
-  const canAutoInstall = cli.installType === "npm" || cli.installType === "vscode";
 
   return (
     <div
@@ -140,34 +134,19 @@ export function CliCard({
           </div>
         </div>
 
-        {/* Not installed: install/download action */}
+        {/* Not installed: hint + link to official site */}
         {!installed && !loading && (
           <div className="flex items-center gap-2 mt-0.5">
-            {canAutoInstall ? (
+            <span className="text-[10px] opacity-40 flex-1">{t("cli.notDetectedHint")}</span>
+            {onOpenDownload && (
               <button
-                className="btn btn-primary btn-xs flex-1 shadow-sm"
-                onClick={onInstall}
-                disabled={installing}
+                className="btn btn-ghost btn-xs opacity-50 hover:opacity-100 transition-opacity shrink-0"
+                onClick={onOpenDownload}
+                title={t("cli.goToSite")}
               >
-                {installing && <span className="loading loading-spinner loading-xs" />}
-                {installing ? t("install.installing") : t("install.install")}
-              </button>
-            ) : (
-              <button
-                className="btn btn-outline btn-xs flex-1"
-                onClick={onDownload}
-              >
-                {t("install.download")}
+                <ExternalLink className="w-3 h-3" />
               </button>
             )}
-            {/* Sync capability badge */}
-            <span className="text-[9px] opacity-35 shrink-0">
-              {cli.installType === "manual-config"
-                ? t("capability.manualOnly")
-                : cli.postSyncHintKey
-                ? t("capability.manualStep")
-                : t("capability.autoSync")}
-            </span>
           </div>
         )}
 

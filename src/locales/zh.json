@@ -57,7 +57,10 @@
     "enabled": "参与全部同步",
     "disabled": "不参与全部同步",
     "openApp": "打开",
-    "viewCommunity": "查看插件市场"
+    "viewCommunity": "查看插件市场",
+    "notDetectedHint": "未检测到，请先安装",
+    "goToSite": "前往官网",
+    "refresh": "刷新检测"
   },
   "toolDesc": {
     "claude": "Anthropic 官方终端编程助手，直接在命令行中用 AI 写代码、改 Bug",
@@ -149,6 +152,7 @@
     "extensionHint": "VS Code 扩展",
     "manualHint": "手动安装",
     "manualConfigHint": "在应用内手动配置",
+    "manualDownload": "前往下载",
     "quickStart": "快速开始：安装 Claude Code",
     "quickStartDesc": "Claude Code 是推荐的 CLI 工具。点击即可通过 npm 自动安装。"
   },

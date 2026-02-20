@@ -57,7 +57,10 @@
     "enabled": "Included in Sync All",
     "disabled": "Excluded from Sync All",
     "openApp": "Open",
-    "viewCommunity": "View in marketplace"
+    "viewCommunity": "View in marketplace",
+    "notDetectedHint": "Not detected — please install first",
+    "goToSite": "Go to website",
+    "refresh": "Refresh detection"
   },
   "toolDesc": {
     "claude": "Anthropic's official terminal coding assistant — write and fix code with AI in the command line",
@@ -149,6 +152,7 @@
     "extensionHint": "VS Code extension",
     "manualHint": "Manual install",
     "manualConfigHint": "Configure in app settings",
+    "manualDownload": "Download manually",
     "quickStart": "Quick Start: Install Claude Code",
     "quickStartDesc": "Claude Code is the recommended CLI tool. Click to install it automatically via npm."
   },

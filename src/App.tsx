@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
-import { Check, ExternalLink, Sun, Moon } from "lucide-react";
+import { Check, ExternalLink, Sun, Moon, RefreshCw } from "lucide-react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CliCard } from "./components/CliCard";
 import { ConfigViewer } from "./components/ConfigViewer";
@@ -222,7 +222,6 @@ function App() {
         loading={loading}
         syncing={syncing[cli.id] || false}
         restoring={restoring[cli.id] || false}
-        installing={installing[cli.id] || false}
         model={getModelForCli(cli.id)}
         onModelChange={(m) =>
           setPerCliModels((prev) => ({ ...prev, [cli.id]: m }))
@@ -263,14 +262,9 @@ function App() {
             setConfigViewer({ cli, status });
           }
         }}
-        onInstall={() => {
-          installOne(cli.id, url, cli.name);
-        }}
-        onDownload={() => {
-          if (cli.downloadUrl) {
-            invoke("open_external_url", { url: cli.downloadUrl });
-          }
-        }}
+        onOpenDownload={cli.downloadUrl ? () => {
+          invoke("open_external_url", { url: cli.downloadUrl });
+        } : undefined}
         onLaunch={cli.launchName ? () => {
           invoke("launch_app", { name: cli.launchName });
         } : undefined}
@@ -381,8 +375,9 @@ function App() {
 
         {/* Right column: Tabs + Tool cards + History */}
         <div className="md:flex-1 md:min-w-0 space-y-4 mt-4 md:mt-0">
-          {/* Tab Bar */}
-          <div className="tabs tabs-boxed glass-card p-1.5 shadow-sm">
+          {/* Tab Bar + Refresh */}
+          <div className="flex items-center gap-2">
+          <div className="tabs tabs-boxed glass-card p-1.5 shadow-sm flex-1">
             {tabOrder.map((tab) => {
               const count = tabInstalledCounts[tab];
               const isActive = activeTab === tab;
@@ -401,6 +396,18 @@ function App() {
                 </button>
               );
             })}
+          </div>
+          <button
+            className="btn btn-ghost btn-sm btn-square opacity-50 hover:opacity-100 transition-opacity shrink-0"
+            onClick={() => detectAll(url)}
+            disabled={loading}
+            title={t("cli.refresh")}
+          >
+            {loading
+              ? <span className="loading loading-spinner loading-xs" />
+              : <RefreshCw className="w-4 h-4" />
+            }
+          </button>
           </div>
 
           {/* Tool cards for active tab (syncable tools) */}

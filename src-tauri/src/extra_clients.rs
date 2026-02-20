@@ -221,21 +221,28 @@ fn config_path_for(client: &ExtraClient) -> Option<PathBuf> {
 // Detection
 // ---------------------------------------------------------------------------
 
-/// Check if the VS Code extension is installed by scanning the extensions dir.
+/// Check if the VS Code extension is installed by scanning known extensions dirs.
 fn is_vscode_extension_installed(ext_prefix: &str) -> bool {
     let home = match home_dir() {
         Some(h) => h,
         None => return false,
     };
-    let ext_dir = home.join(".vscode/extensions");
-    if !ext_dir.exists() {
-        return false;
-    }
-    if let Ok(entries) = fs::read_dir(&ext_dir) {
-        for entry in entries.flatten() {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with(ext_prefix) {
-                    return true;
+    // VS Code stores extensions in ~/.vscode/extensions on all platforms.
+    // Cursor stores its own copy in ~/.cursor/extensions.
+    let ext_dirs = [
+        home.join(".vscode").join("extensions"),
+        home.join(".cursor").join("extensions"),
+    ];
+    for ext_dir in &ext_dirs {
+        if !ext_dir.exists() {
+            continue;
+        }
+        if let Ok(entries) = fs::read_dir(ext_dir) {
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.starts_with(ext_prefix) {
+                        return true;
+                    }
                 }
             }
         }
@@ -260,7 +267,58 @@ fn is_app_installed(app_name: &str) -> bool {
     false
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn is_app_installed(app_name: &str) -> bool {
+    // Check common Windows install locations
+    let candidates: &[&str] = &[
+        "LOCALAPPDATA",
+        "PROGRAMFILES",
+        "PROGRAMFILES(X86)",
+        "APPDATA",
+    ];
+    for env_var in candidates {
+        if let Ok(base) = std::env::var(env_var) {
+            let path = PathBuf::from(&base).join(app_name);
+            if path.exists() {
+                return true;
+            }
+            // Also check with .exe suffix directly
+            let exe = PathBuf::from(&base).join(format!("{}.exe", app_name));
+            if exe.exists() {
+                return true;
+            }
+        }
+    }
+    // Check if binary is in PATH
+    utils::resolve_executable(&app_name.to_lowercase()).is_some()
+}
+
+#[cfg(target_os = "linux")]
+fn is_app_installed(app_name: &str) -> bool {
+    // Check ~/.local/share/applications and /usr/share/applications for .desktop files
+    let lower = app_name.to_lowercase();
+    let candidates = [
+        dirs::home_dir().map(|h| h.join(".local/share/applications")),
+        Some(PathBuf::from("/usr/share/applications")),
+        Some(PathBuf::from("/usr/local/share/applications")),
+    ];
+    for dir_opt in &candidates {
+        if let Some(dir) = dir_opt {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.to_lowercase().contains(&lower) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    utils::resolve_executable(&lower).is_some()
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 fn is_app_installed(_app_name: &str) -> bool {
     false
 }
