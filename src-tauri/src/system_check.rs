@@ -208,34 +208,6 @@ fn get_available_disk_space() -> u64 {
         .unwrap_or(0)
 }
 
-/// 检查特定路径是否超过 Windows MAX_PATH 限制
-#[cfg(target_os = "windows")]
-pub fn check_path_length(path: &std::path::Path) -> Result<()> {
-    let path_str = path.to_string_lossy();
-    let length = path_str.len();
-
-    if length > 260 {
-        return Err(SyncError::PathTooLong {
-            path: path_str.to_string(),
-            length,
-        });
-    }
-
-    if length > 240 {
-        tracing::warn!(
-            "[system_check] Path is close to Windows MAX_PATH limit: {} chars",
-            length
-        );
-    }
-
-    Ok(())
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn check_path_length(_path: &std::path::Path) -> Result<()> {
-    Ok(())
-}
-
 /// Tauri command: 获取系统检测结果
 #[tauri::command]
 pub fn get_system_status() -> SystemRequirements {

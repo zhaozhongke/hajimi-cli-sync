@@ -1,22 +1,28 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
 import { Check, ExternalLink, Sun, Moon, RefreshCw } from "lucide-react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CliCard } from "./components/CliCard";
 import { ConfigViewer } from "./components/ConfigViewer";
+import { ProviderPanel } from "./components/ProviderPanel";
 import { useCliSync, getSyncLog } from "./hooks/useCliSync";
 import type { SyncLogEntry } from "./hooks/useCliSync";
 import { useModels } from "./hooks/useModels";
+import { listProviders, saveProvider, switchProvider } from "./hooks/useProviders";
 import { CLI_LIST } from "./types";
-import type { CliInfo, CliStatusResult } from "./types";
+import type { CliInfo, CliStatusResult, ProviderRecord } from "./types";
 import type { CliCategory } from "./types";
 
 const DEFAULT_URL = "https://vip.aipro.love";
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const APP_VERSION = "1.2.0";
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -40,10 +46,34 @@ function App() {
   }, []);
   const isDark = theme === "hajimi-dark";
 
+  // ── App version (from Tauri) ──────────────────────────────────────────────
+  const [appVersion, setAppVersion] = useState("");
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
+
+  // ── Provider state ──────────────────────────────────────────────────────────
+  const [providers, setProviders] = useState<ProviderRecord[]>([]);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [providersLoading, setProvidersLoading] = useState(true);
+
+  const reloadProviders = useCallback(async () => {
+    try {
+      const list = await listProviders();
+      setProviders(list);
+      return list;
+    } catch (e) {
+      console.error("Failed to load providers:", e);
+      return [] as ProviderRecord[];
+    }
+  }, []);
+
+  // Derived: the currently-active provider (DB truth).
+  const currentProvider = providers.find((p) => p.is_current) ?? null;
+
   const [url, setUrl] = useState(() => localStorage.getItem("hajimi-url") || DEFAULT_URL);
   const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("hajimi-save-key") !== "false");
   const [apiKey, setApiKey] = useState(() =>
-    // Only restore from localStorage if "remember key" is enabled
     localStorage.getItem("hajimi-save-key") !== "false"
       ? localStorage.getItem("hajimi-key") || ""
       : ""
@@ -56,6 +86,59 @@ function App() {
     } catch { return {}; }
   });
 
+  // Sync local state when currentProvider changes (full object in deps, not just id).
+  // This is the single source of truth — onSwitched callback removed from ProviderPanel.
+  useEffect(() => {
+    if (!currentProvider) return;
+    setUrl(currentProvider.url);
+    setApiKey(currentProvider.api_key);
+    if (currentProvider.default_model) setDefaultModel(currentProvider.default_model);
+    try {
+      const pcm = JSON.parse(currentProvider.per_cli_models);
+      if (pcm && typeof pcm === "object") setPerCliModels(pcm);
+    } catch { /* ignore malformed JSON */ }
+  }, [currentProvider]); // full object — picks up field-level changes too
+
+  // On first load: load providers + one-time localStorage migration if DB is empty.
+  useEffect(() => {
+    (async () => {
+      setProvidersLoading(true);
+      try {
+        const list = await reloadProviders();
+        // Migration: if DB has no providers and localStorage has credentials,
+        // create the first provider and immediately activate it.
+        if (list.length === 0) {
+          const lsUrl = localStorage.getItem("hajimi-url") || DEFAULT_URL;
+          const lsKey = localStorage.getItem("hajimi-key") || "";
+          const lsModel = localStorage.getItem("hajimi-model") || DEFAULT_MODEL;
+          const lsCliModels = localStorage.getItem("hajimi-cli-models") || "{}";
+          if (lsUrl && lsKey) {
+            const migrated: ProviderRecord = {
+              id: crypto.randomUUID(),
+              name: t("provider.migratedDefault"),
+              url: lsUrl,
+              api_key: lsKey,
+              default_model: lsModel,
+              per_cli_models: lsCliModels,
+              is_current: false,
+              sort_index: null,
+              notes: null,
+              created_at: Math.floor(Date.now() / 1000),
+            };
+            try {
+              await saveProvider(migrated);
+              await switchProvider(migrated.id);
+            } catch { /* non-fatal */ }
+            await reloadProviders();
+          }
+        }
+      } finally {
+        setProvidersLoading(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [configViewer, setConfigViewer] = useState<{
     cli: CliInfo;
     status: CliStatusResult;
@@ -66,11 +149,10 @@ function App() {
     loading,
     syncing,
     restoring,
-    installing,
     detectAll,
     syncOne,
+    syncAll,
     restoreOne,
-    installOne,
     getConfigContent,
   } = useCliSync();
 
@@ -81,7 +163,8 @@ function App() {
     fetchModels,
   } = useModels();
 
-  // Persist settings
+  // Persist settings (url/key/model/perCliModels still saved to localStorage as
+  // fallback, and as the "live editing" state for the current session)
   useEffect(() => { localStorage.setItem("hajimi-url", url); }, [url]);
   useEffect(() => {
     localStorage.setItem("hajimi-save-key", String(saveApiKey));
@@ -97,6 +180,44 @@ function App() {
   const handleUrlChange = useCallback((newUrl: string) => {
     setUrl(newUrl);
   }, []);
+
+  // When user selects a token in account mode: upsert a Provider with the token
+  // name and immediately activate it so ProviderPanel stays in sync.
+  const handleAccountConfigReady = useCallback(
+    async (accountUrl: string, accountApiKey: string, tokenName: string) => {
+      try {
+        // Check if a provider with this exact url+key already exists.
+        const existing = providers.find(
+          (p) => p.url === accountUrl && p.api_key === accountApiKey
+        );
+        let providerId: string;
+        if (existing) {
+          providerId = existing.id;
+        } else {
+          const newProvider: ProviderRecord = {
+            id: crypto.randomUUID(),
+            name: tokenName,
+            url: accountUrl,
+            api_key: accountApiKey,
+            default_model: defaultModel,
+            per_cli_models: "{}",
+            is_current: false,
+            sort_index: null,
+            notes: null,
+            created_at: Math.floor(Date.now() / 1000),
+          };
+          await saveProvider(newProvider);
+          providerId = newProvider.id;
+        }
+        // Activate the provider — this syncs all installed CLIs.
+        await switchProvider(providerId);
+        await reloadProviders();
+      } catch (e) {
+        toast.error(String(e), { duration: 5000 });
+      }
+    },
+    [providers, defaultModel, reloadProviders]
+  );
 
   // Re-detect when URL changes (debounced)
   useEffect(() => {
@@ -137,15 +258,19 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === "r") {
         e.preventDefault();
         detectAll(url);
-      } else if (e.key === "Escape" && configViewer) {
-        setConfigViewer(null);
+      } else if (e.key === "Escape") {
+        if (confirmRestoreSingle) {
+          setConfirmRestoreSingle(null);
+        } else if (configViewer) {
+          setConfigViewer(null);
+        }
       } else if (e.key === "l" && !e.metaKey && !e.ctrlKey) {
         toggleLang();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [url, configViewer, detectAll, toggleLang]);
+  }, [url, configViewer, confirmRestoreSingle, detectAll, toggleLang]);
 
   const hasInstalled = statuses.some((s) => s.installed);
 
@@ -156,10 +281,10 @@ function App() {
   const [showManualTools, setShowManualTools] = useState(false);
   const [syncLog, setSyncLog] = useState<SyncLogEntry[]>([]);
 
-  // Refresh log when syncing/restoring/installing changes
+  // Refresh log when syncing/restoring changes
   useEffect(() => {
     setSyncLog(getSyncLog());
-  }, [syncing, restoring, installing]);
+  }, [syncing, restoring]);
 
   // Status dashboard counts
   const { installedCount, syncedCount } = useMemo(() => {
@@ -222,6 +347,7 @@ function App() {
         loading={loading}
         syncing={syncing[cli.id] || false}
         restoring={restoring[cli.id] || false}
+        isSwitching={isSwitching}
         model={getModelForCli(cli.id)}
         onModelChange={(m) =>
           setPerCliModels((prev) => ({ ...prev, [cli.id]: m }))
@@ -236,8 +362,8 @@ function App() {
           // Deep link sync: construct URL and open it directly
           if (cli.deepLinkTemplate) {
             const config = JSON.stringify({
-              id: "hajimi",
-              name: "\u54c8\u57fa\u7c73 AI",
+              id: "hakimiai",
+              name: "\u54c8\u57fa\u7c73AI",
               baseUrl: url,
               apiKey: apiKey,
             });
@@ -305,7 +431,7 @@ function App() {
               <div className="min-w-0 flex-1">
                 <h1 className="text-base font-bold leading-tight tracking-tight truncate">
                   {t("app.title")}
-                  <span className="text-[10px] font-normal opacity-30 ml-1">v{APP_VERSION}</span>
+                  <span className="text-[10px] font-normal opacity-30 ml-1">{appVersion && `v${appVersion}`}</span>
                 </h1>
                 <p className="text-[11px] opacity-50 leading-tight truncate">{t("app.subtitle")}</p>
               </div>
@@ -351,6 +477,30 @@ function App() {
             </div>
           </div>
 
+          {/* Provider Panel */}
+          <div className="card glass-card shadow-lg">
+            <div className="card-body p-4">
+              {providersLoading ? (
+                <div className="flex items-center justify-center py-4 opacity-40">
+                  <span className="loading loading-spinner loading-xs mr-2" />
+                  <span className="text-xs">{t("provider.loading")}</span>
+                </div>
+              ) : (
+                <ProviderPanel
+                  providers={providers}
+                  onProvidersChange={reloadProviders}
+                  onSwitched={() => {
+                    // State is driven exclusively by useEffect[currentProvider].
+                    // detectAll is triggered by the url change in that effect.
+                    // No manual state updates here — single source of truth.
+                  }}
+                  isSwitching={isSwitching}
+                  setIsSwitching={setIsSwitching}
+                />
+              )}
+            </div>
+          </div>
+
           {/* Settings Card */}
           <div className="card glass-card shadow-lg">
             <div className="card-body p-4">
@@ -368,6 +518,7 @@ function App() {
                 onPerCliModelsChange={setPerCliModels}
                 saveApiKey={saveApiKey}
                 onSaveApiKeyChange={setSaveApiKey}
+                onAccountConfigReady={handleAccountConfigReady}
               />
             </div>
           </div>
@@ -375,45 +526,88 @@ function App() {
 
         {/* Right column: Tabs + Tool cards + History */}
         <div className="md:flex-1 md:min-w-0 space-y-4 mt-4 md:mt-0">
-          {/* Tab Bar + Refresh */}
+          {/* Sync status bar + Sync All + Refresh */}
           <div className="flex items-center gap-2">
-          <div className="tabs tabs-boxed glass-card p-1.5 shadow-sm flex-1">
-            {tabOrder.map((tab) => {
-              const count = tabInstalledCounts[tab];
-              const isActive = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  className={`tab tab-sm tab-glow flex-1 gap-1.5 transition-all ${isActive ? "tab-active !bg-primary !text-primary-content font-semibold shadow-sm" : "hover:bg-base-200/50"}`}
-                  onClick={() => setActiveTab(tab)}
-                >
-                  {t(`category.${tab}`)}
-                  {count > 0 && (
-                    <span className={`badge badge-xs ${isActive ? "bg-primary-content/20 text-primary-content border-0" : "badge-ghost"}`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <div className="tabs tabs-boxed glass-card p-1.5 shadow-sm flex-1">
+              {tabOrder.map((tab) => {
+                const count = tabInstalledCounts[tab];
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    className={`tab tab-sm tab-glow flex-1 gap-1.5 transition-all ${isActive ? "tab-active !bg-primary !text-primary-content font-semibold shadow-sm" : "hover:bg-base-200/50"}`}
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {t(`category.${tab}`)}
+                    {count > 0 && (
+                      <span className={`badge badge-xs ${isActive ? "bg-primary-content/20 text-primary-content border-0" : "badge-ghost"}`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Sync All — primary CTA when tools are installed but not all synced */}
+            {hasInstalled && (
+              <button
+                className={`btn btn-sm shrink-0 gap-1.5 ${
+                  syncedCount === installedCount
+                    ? "btn-success btn-outline"
+                    : "btn-primary"
+                }`}
+                onClick={() => {
+                  if (!apiKey) { toast.error(t("toast.apiKeyRequired")); return; }
+                  syncAll(url, apiKey, defaultModel, perCliModels);
+                }}
+                disabled={loading || Object.values(syncing).some(Boolean) || isSwitching || !url.trim() || !apiKey.trim()}
+                title={t("settings.syncAll")}
+              >
+                {Object.values(syncing).some(Boolean)
+                  ? <span className="loading loading-spinner loading-xs" />
+                  : syncedCount === installedCount
+                  ? <Check className="w-3.5 h-3.5" />
+                  : null}
+                {t("settings.syncAll")}
+              </button>
+            )}
+            <button
+              className="btn btn-ghost btn-sm btn-square opacity-50 hover:opacity-100 transition-opacity shrink-0"
+              onClick={() => detectAll(url)}
+              disabled={loading || isSwitching}
+              title={t("cli.refresh")}
+            >
+              {loading
+                ? <span className="loading loading-spinner loading-xs" />
+                : <RefreshCw className="w-4 h-4" />
+              }
+            </button>
           </div>
-          <button
-            className="btn btn-ghost btn-sm btn-square opacity-50 hover:opacity-100 transition-opacity shrink-0"
-            onClick={() => detectAll(url)}
-            disabled={loading}
-            title={t("cli.refresh")}
-          >
-            {loading
-              ? <span className="loading loading-spinner loading-xs" />
-              : <RefreshCw className="w-4 h-4" />
-            }
-          </button>
-          </div>
+
+          {/* Switching banner — shown while a provider switch is in progress */}
+          {isSwitching && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs">
+              <span className="loading loading-spinner loading-xs shrink-0" />
+              {t("provider.switching")}
+            </div>
+          )}
 
           {/* Tool cards for active tab (syncable tools) */}
           <div className={`grid ${gridCols} gap-3`}>
             {syncableClis.map(renderCliCard)}
           </div>
+
+          {/* Empty state: no tools installed in this tab */}
+          {!loading && syncableClis.length > 0 &&
+            syncableClis.every((c) => !statuses.find((s) => s.app === c.id)?.installed) &&
+            manualClis.every((c) => !statuses.find((s) => s.app === c.id)?.installed) && (
+            <div className="card glass-card shadow-sm">
+              <div className="card-body items-center text-center py-8 gap-2">
+                <p className="text-sm font-medium opacity-60">{t("empty.title")}</p>
+                <p className="text-xs opacity-40 max-w-xs">{t("empty.description")}</p>
+              </div>
+            </div>
+          )}
 
           {/* Manual-config tools — collapsible, hidden by default */}
           {manualClis.length > 0 && (
@@ -427,7 +621,7 @@ function App() {
                   <span className="badge badge-ghost badge-xs ml-1.5">{t("section.manualConfigCount", { count: manualClis.length })}</span>
                 </span>
                 <span className={`text-xs transition-transform duration-200 ${showManualTools ? "rotate-180" : ""}`}>
-                  {"\u25bc"}
+                  {"▼"}
                 </span>
               </button>
               {showManualTools && (
@@ -447,7 +641,7 @@ function App() {
               >
                 <span className="text-xs">{t("history.title")}</span>
                 <span className={`text-xs transition-transform duration-200 ${showHistory ? "rotate-180" : ""}`}>
-                  {"\u25bc"}
+                  {"▼"}
                 </span>
               </button>
               {showHistory && (
@@ -456,7 +650,7 @@ function App() {
                     {syncLog.slice(0, 20).map((entry) => (
                       <div key={entry.id} className="flex items-center gap-2 text-xs">
                         <span className={entry.success ? "text-success" : "text-error"}>
-                          {entry.success ? "\u2713" : "\u2717"}
+                          {entry.success ? "✓" : "✗"}
                         </span>
                         <span className="opacity-50 font-mono shrink-0">
                           {new Date(entry.time).toLocaleTimeString()}
@@ -520,7 +714,7 @@ function App() {
         </div>
       )}
 
-      {/* Toast notifications */}
+      {/* Toast notifications — success 2.5s, errors 5s */}
       <Toaster position="bottom-right" richColors duration={2500} />
     </div>
   );

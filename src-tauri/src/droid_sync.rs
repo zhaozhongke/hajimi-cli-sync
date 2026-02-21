@@ -239,10 +239,8 @@ mod tests {
 }
 
 pub fn write_droid_config_content(content: &str) -> Result<(), String> {
-    use std::fs;
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
     serde_json::from_str::<serde_json::Value>(content)
         .map_err(|e| format!("Invalid JSON: {}", e))?;
-    fs::write(&config_path, content)
-        .map_err(|e| format!("Failed to write config: {}", e))
+    utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }

@@ -1,10 +1,9 @@
 {
   "app": {
-    "title": "Hajimi Switch",
-    "subtitle": "哈基米 AI 一键同步工具",
+    "title": "哈基米AI Switch",
+    "subtitle": "哈基米AI CLI 一键切换",
     "docs": "使用文档",
     "brand": "哈基米 AI",
-    "statusSynced": "已同步 {{count}} 个",
     "statusNone": "尚未同步",
     "connected": "已连接",
     "notConnected": "未连接",
@@ -17,7 +16,7 @@
     "step2": "API 密钥",
     "step2Hint": "粘贴订阅获得的密钥",
     "step3": "默认模型",
-    "step3Hint": "将配置同步到所有已安装的 AI 工具"
+    "step3Hint": "选择 AI 工具使用的默认模型"
   },
   "settings": {
     "apiUrl": "API 地址",
@@ -93,11 +92,6 @@
     "lobechat": "设置 → 语言模型 → 添加 OpenAI 兼容服务商 → 填入 API 地址和密钥",
     "boltai": "Settings → Models → Add Server → 选择 OpenAI Compatible → 填入地址和密钥"
   },
-  "capability": {
-    "autoSync": "可自动配置",
-    "manualStep": "需额外手动步骤",
-    "manualOnly": "需手动配置"
-  },
   "config": {
     "title": "{{name}} 配置",
     "close": "关闭",
@@ -139,7 +133,8 @@
     "test": "测试",
     "testing": "测试中...",
     "success": "连接成功",
-    "failed": "连接失败: {{error}}"
+    "failed": "连接失败: {{error}}",
+    "failedHint": "请检查 API 地址是否正确，以及密钥是否有效"
   },
   "install": {
     "install": "安装",
@@ -147,6 +142,7 @@
     "download": "下载",
     "installed": "已安装",
     "failed": "安装失败: {{error}}",
+    "failedOpenDownload": "{{name}} 自动安装失败，正在打开下载页面",
     "success": "{{name}} 安装成功",
     "desktopHint": "桌面应用",
     "extensionHint": "VS Code 扩展",
@@ -161,16 +157,6 @@
     "chat": "AI 对话",
     "agent": "多平台助手",
     "rp": "角色扮演"
-  },
-  "tabGuide": {
-    "codingDesc": "用 AI 写代码、改 Bug、做项目。同步后，这些工具会自动连上你的 API，开箱即用。",
-    "codingRecommend": "推荐新手从 Claude Code 开始",
-    "chatDesc": "和 AI 自由聊天、问答、写作。同步后，这些客户端会自动连上你的 API。",
-    "chatRecommend": "推荐安装 Chatbox，简洁好用",
-    "agentDesc": "把 AI 接入你常用的聊天平台（WhatsApp、Telegram、Discord 等），随时随地使用。",
-    "agentRecommend": "安装 OpenClaw 即可一键接入",
-    "rpDesc": "角色扮演、故事创作、沉浸式对话。同步后自动连接 API，导入角色卡即可开始。",
-    "rpRecommend": "安装 SillyTavern 开始体验"
   },
   "section": {
     "installed": "已安装",
@@ -188,6 +174,39 @@
     "restore": "恢复",
     "install": "安装"
   },
+  "provider": {
+    "title": "套餐管理",
+    "add": "新建套餐",
+    "newTitle": "新建套餐",
+    "editTitle": "编辑套餐",
+    "current": "当前",
+    "switch": "切换",
+    "switching": "正在切换套餐并同步配置，请稍候…",
+    "switched": "已切换到「{{name}}」",
+    "switchedWithErrors": "切换完成，部分工具同步失败: {{apps}}",
+    "saved": "套餐已保存",
+    "deleted": "套餐已删除",
+    "loading": "加载套餐中...",
+    "empty": "暂无套餐，点击「新建套餐」开始",
+    "namePlaceholder": "套餐名称（如「哈基米AI VIP」）",
+    "urlPlaceholder": "API 地址（如 https://vip.aipro.love）",
+    "apiKeyPlaceholder": "API 密钥",
+    "defaultModelPlaceholder": "默认模型（可留空）",
+    "notesPlaceholder": "备注（可留空）",
+    "nameRequired": "请输入套餐名称",
+    "urlRequired": "请输入 API 地址",
+    "apiKeyRequired": "请输入 API 密钥",
+    "cannotDeleteCurrent": "无法删除当前使用的套餐，请先切换到其他套餐",
+    "deleteConfirm": "确定删除「{{name}}」？此操作不可恢复。",
+    "deleteConfirmBtn": "删除",
+    "showKey": "显示",
+    "hideKey": "隐藏",
+    "migratedDefault": "默认套餐"
+  },
+  "purchase": {
+    "title": "没有套餐？闲鱼低价购买 →",
+    "hint": "哈基米 AI Cluade套餐，独家适配技术，极低成本，无限可能！"
+  },
   "account": {
     "modeManual": "手动输入",
     "modeAccount": "账号登录",
@@ -198,12 +217,13 @@
     "loggingIn": "登录中...",
     "loginSuccess": "欢迎回来，{{name}}",
     "logoutSuccess": "已退出登录",
+    "defaultTokenName": "令牌 #{{id}}",
     "noAccount": "还没有账号？前往注册",
     "noTokens": "暂无可用的 API 密钥",
     "selectKey": "选择",
     "selected": "已选择",
     "tokenSelected": "已选择密钥「{{name}}」",
-    "configReady": "配置已就绪，可以同步到下方的 AI 工具了",
+    "configReady": "密钥已就绪，已自动同步到已安装的工具",
     "used": "已用",
     "remaining": "剩余",
     "expires": "到期",

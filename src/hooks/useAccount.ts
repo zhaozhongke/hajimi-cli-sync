@@ -42,13 +42,14 @@ export function useAccount() {
         password,
       });
       setAccountInfo(info);
-      // Persist session to localStorage — including the cookie itself
+      // Persist non-sensitive session metadata to localStorage.
+      // SECURITY: Session cookie is NOT stored in localStorage — it stays
+      // only in the Rust backend's in-memory state. Users must re-login
+      // after app restart. This prevents credential theft via XSS or
+      // local file access.
       localStorage.setItem(SESSION_KEYS.url, baseUrl);
       localStorage.setItem(SESSION_KEYS.userId, String(info.user_id));
       localStorage.setItem(SESSION_KEYS.username, info.username);
-      if (info.session_cookie) {
-        localStorage.setItem(SESSION_KEYS.session, info.session_cookie);
-      }
       return info;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -80,34 +81,14 @@ export function useAccount() {
   }, []);
 
   const checkSession = useCallback(async () => {
-    // Try to restore session from localStorage
-    const savedUrl = localStorage.getItem(SESSION_KEYS.url);
-    const savedUserId = localStorage.getItem(SESSION_KEYS.userId);
-    const savedUsername = localStorage.getItem(SESSION_KEYS.username);
-    const savedSession = localStorage.getItem(SESSION_KEYS.session);
-
-    if (!savedUrl || !savedUserId || !savedUsername || !savedSession) {
-      return null;
-    }
-
+    // Session cookie is kept only in Rust's in-memory state (not persisted
+    // to localStorage for security). On app restart the cookie is gone,
+    // so this will fail and the user re-logs in.
     try {
-      // Restore session into Rust state
-      await invoke("account_restore_session", {
-        baseUrl: savedUrl,
-        sessionCookie: savedSession,
-        userId: Number(savedUserId),
-        username: savedUsername,
-      });
-
-      // Verify it's still valid
       const info = await invoke<AccountInfo>("account_check_session");
       setAccountInfo(info);
       return info;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg === "SESSION_EXPIRED" || msg === "NOT_LOGGED_IN") {
-        clearSession();
-      }
+    } catch {
       return null;
     }
   }, []);

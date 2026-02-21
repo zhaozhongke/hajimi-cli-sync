@@ -39,6 +39,7 @@ interface CliCardProps {
   loading: boolean;
   syncing: boolean;
   restoring: boolean;
+  isSwitching?: boolean;
   model: string;
   onModelChange: (model: string) => void;
   apiModels: string[];
@@ -57,6 +58,7 @@ export function CliCard({
   loading,
   syncing,
   restoring,
+  isSwitching = false,
   model,
   onModelChange,
   apiModels,
@@ -75,6 +77,8 @@ export function CliCard({
   const isSynced = status?.is_synced ?? false;
   const hasBackup = status?.has_backup ?? false;
   const syncedCount = status?.synced_count;
+
+  const busy = syncing || restoring || isSwitching;
 
   return (
     <div
@@ -99,7 +103,7 @@ export function CliCard({
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-sm leading-tight truncate">{cli.name}</span>
                 {version && (
-                  <span className="text-[10px] opacity-35 font-mono">v{version}</span>
+                  <span className="text-[10px] opacity-35 font-mono">{t("cli.version", { version })}</span>
                 )}
                 {onCommunity && (
                   <button
@@ -179,7 +183,7 @@ export function CliCard({
                 <button
                   className={`btn btn-xs flex-1 shadow-sm ${isSynced ? "btn-outline btn-success" : "btn-primary"}`}
                   onClick={onSync}
-                  disabled={syncing}
+                  disabled={busy}
                 >
                   {syncing && <span className="loading loading-spinner loading-xs" />}
                   {t("cli.sync")}
@@ -187,7 +191,7 @@ export function CliCard({
                 <button
                   className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
                   onClick={onRestore}
-                  disabled={restoring || !hasBackup}
+                  disabled={busy || !hasBackup}
                   title={t("cli.restore")}
                 >
                   {restoring && <span className="loading loading-spinner loading-xs" />}
@@ -196,6 +200,7 @@ export function CliCard({
                 <button
                   className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
                   onClick={onViewConfig}
+                  disabled={busy}
                   title={t("cli.viewConfig")}
                 >
                   {t("cli.viewConfig")}

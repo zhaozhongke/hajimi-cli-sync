@@ -19,10 +19,28 @@ export interface SyncAllResult {
   results: SyncResult[];
 }
 
+export interface SwitchResult {
+  success: boolean;
+  errors: SyncResult[];
+}
+
 export interface AppConfig {
   url: string;
   apiKey: string;
   defaultModel: string;
+}
+
+export interface ProviderRecord {
+  id: string;
+  name: string;
+  url: string;
+  api_key: string;
+  default_model: string;
+  per_cli_models: string; // JSON string: Record<string, string>
+  is_current: boolean;
+  sort_index: number | null;
+  notes: string | null;
+  created_at: number;
 }
 
 export type InstallType = "npm" | "vscode" | "desktop" | "manual" | "manual-config";

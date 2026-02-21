@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
-import { Eye, EyeOff, Check, X, RefreshCw, Download, Upload, KeyRound, UserCircle } from "lucide-react";
+import { Eye, EyeOff, Check, X, RefreshCw, Download, Upload, KeyRound, UserCircle, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { ModelSelector } from "./ModelSelector";
 import { AccountLogin } from "./AccountLogin";
@@ -23,6 +23,8 @@ interface SettingsPanelProps {
   onPerCliModelsChange: (models: Record<string, string>) => void;
   saveApiKey: boolean;
   onSaveApiKeyChange: (save: boolean) => void;
+  /** Called when user selects a token in account mode — includes token name for Provider naming */
+  onAccountConfigReady: (url: string, apiKey: string, tokenName: string) => void;
 }
 
 export function SettingsPanel({
@@ -39,6 +41,7 @@ export function SettingsPanel({
   onPerCliModelsChange,
   saveApiKey,
   onSaveApiKeyChange,
+  onAccountConfigReady,
 }: SettingsPanelProps) {
   const { t } = useTranslation();
   const [authMode, setAuthMode] = useState<AuthMode>(
@@ -137,9 +140,10 @@ export function SettingsPanel({
     }
   };
 
-  const handleAccountConfigReady = (accountUrl: string, accountApiKey: string) => {
+  const handleAccountConfigReady = (accountUrl: string, accountApiKey: string, tokenName: string) => {
     onUrlChange(accountUrl);
     onApiKeyChange(accountApiKey);
+    onAccountConfigReady(accountUrl, accountApiKey, tokenName);
   };
 
   const stepIndicator = (step: number, label: string) => {
@@ -265,6 +269,13 @@ export function SettingsPanel({
             </div>
           </div>
 
+          {/* Connection test failure hint */}
+          {testResult === "error" && (
+            <div className="text-xs text-error opacity-70 px-0.5">
+              {t("connection.failedHint")}
+            </div>
+          )}
+
           {/* Remember key toggle */}
           <div className="flex items-center justify-between px-0.5">
             <label className="flex items-center gap-1.5 cursor-pointer select-none" title={t("settings.saveApiKeyHint")}>
@@ -310,6 +321,21 @@ export function SettingsPanel({
               {t("settings.import")}
             </button>
           </div>
+
+          {/* Purchase CTA */}
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-400/20 hover:border-orange-400/40 hover:from-orange-500/15 hover:to-amber-500/15 transition-all text-left group"
+            onClick={() => invoke("open_external_url", { url: "https://m.tb.cn/h.7EJM4va?tk=hb16UmTYhKB" })}
+          >
+            <div className="w-7 h-7 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0 group-hover:bg-orange-500/25 transition-colors">
+              <ShoppingCart className="w-3.5 h-3.5 text-orange-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-orange-500/90 leading-tight">{t("purchase.title")}</div>
+              <div className="text-[10px] opacity-50 leading-tight mt-0.5 truncate">{t("purchase.hint")}</div>
+            </div>
+            <div className="text-[10px] text-orange-500/60 shrink-0 group-hover:translate-x-0.5 transition-transform">→</div>
+          </button>
         </>
       )}
 

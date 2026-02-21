@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { CliStatusResult, SyncAllResult } from "../types";
@@ -41,6 +41,8 @@ function appendLog(entry: Omit<SyncLogEntry, "id" | "time">): SyncLogEntry {
 export function useCliSync() {
   const { t } = useTranslation();
   const [statuses, setStatuses] = useState<CliStatusResult[]>([]);
+  const statusesRef = useRef<CliStatusResult[]>(statuses);
+  statusesRef.current = statuses;
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [restoring, setRestoring] = useState<Record<string, boolean>>({});
@@ -80,7 +82,7 @@ export function useCliSync() {
         setStatuses(allStatus);
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
-        toast.error(t("toast.syncFailed", { name, error }));
+        toast.error(t("toast.syncFailed", { name, error }), { duration: 5000 });
         appendLog({ action: "sync", app: name, success: false, detail: error });
       } finally {
         setSyncing((prev) => ({ ...prev, [app]: false }));
@@ -93,7 +95,7 @@ export function useCliSync() {
     async (url: string, apiKey: string, model: string | null, perCliModels?: Record<string, string>) => {
       setSyncing((prev) => {
         const next = { ...prev };
-        statuses
+        statusesRef.current
           .filter((s) => s.installed)
           .forEach((s) => (next[s.app] = true));
         return next;
@@ -113,9 +115,9 @@ export function useCliSync() {
           );
           appendLog({ action: "sync_all", app: `${successCount}/${totalCount}`, success: true });
         } else if (totalCount === 0) {
-          toast.error(t("toast.noInstalledCli"));
+          toast.error(t("toast.noInstalledCli"), { duration: 5000 });
         } else {
-          toast.error(t("toast.syncAllFailed"));
+          toast.error(t("toast.syncAllFailed"), { duration: 5000 });
           appendLog({ action: "sync_all", app: `${successCount}/${totalCount}`, success: false });
         }
         const allStatus = await invoke<CliStatusResult[]>(
@@ -125,12 +127,12 @@ export function useCliSync() {
         setStatuses(allStatus);
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
-        toast.error(`Sync failed: ${error}`);
+        toast.error(t("toast.syncFailed", { name: "Sync All", error }), { duration: 5000 });
       } finally {
         setSyncing({});
       }
     },
-    [statuses, t]
+    [t]
   );
 
   const restoreOne = useCallback(
@@ -147,7 +149,7 @@ export function useCliSync() {
         setStatuses(allStatus);
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
-        toast.error(t("toast.restoreFailed", { name, error }));
+        toast.error(t("toast.restoreFailed", { name, error }), { duration: 5000 });
         appendLog({ action: "restore", app: name, success: false, detail: error });
       } finally {
         setRestoring((prev) => ({ ...prev, [app]: false }));
@@ -221,6 +223,7 @@ export function useCliSync() {
     installing,
     detectAll,
     syncOne,
+    syncAll,
     restoreOne,
     installOne,
     getConfigContent,

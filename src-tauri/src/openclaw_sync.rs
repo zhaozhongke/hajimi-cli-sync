@@ -238,10 +238,7 @@ pub fn restore_openclaw_config() -> Result<(), String> {
     let backup_path =
         config_path.with_file_name(format!("{}{}", CONFIG_FILE, BACKUP_SUFFIX));
     if backup_path.exists() {
-        if config_path.exists() {
-            fs::remove_file(&config_path)
-                .map_err(|e| format!("Failed to remove config: {}", e))?;
-        }
+        // Atomic rename replaces the target file directly — no intermediate delete needed.
         fs::rename(&backup_path, &config_path)
             .map_err(|e| format!("Failed to restore config: {}", e))?;
         Ok(())
@@ -265,12 +262,13 @@ pub fn write_openclaw_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
     serde_json::from_str::<serde_json::Value>(content)
         .map_err(|e| format!("Invalid JSON: {}", e))?;
-    fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {}", e))
+    utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::urls_match;
 
     #[test]
     fn test_urls_match() {

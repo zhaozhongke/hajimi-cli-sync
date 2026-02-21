@@ -51,9 +51,6 @@ pub enum SyncError {
     #[error("Environment variable '{var}' is not set.\n\nThis is required on Windows. Please check your system settings.")]
     EnvVarNotSet { var: String },
 
-    #[error("Path too long (Windows MAX_PATH limit): {path}\n\nPath length: {length}, Maximum: 260\n\nConsider moving the project to a shorter path.")]
-    PathTooLong { path: String, length: usize },
-
     #[error("{0}")]
     Other(String),
 }
@@ -78,7 +75,6 @@ impl SyncError {
             Self::Timeout { .. } => "TIMEOUT",
             Self::InvalidUrl { .. } => "INVALID_URL",
             Self::EnvVarNotSet { .. } => "ENV_VAR_NOT_SET",
-            Self::PathTooLong { .. } => "PATH_TOO_LONG",
             Self::Other(_) => "UNKNOWN",
         }
     }

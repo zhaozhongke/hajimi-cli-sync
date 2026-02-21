@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import { Copy, Download, Pencil, Save, X, FolderOpen, Check } from "lucide-react";
 import hljs from "highlight.js/lib/core";
 import json from "highlight.js/lib/languages/json";
@@ -138,7 +139,7 @@ export function ConfigViewer({
       setEditing(false);
       setValidationError("");
     } catch (err) {
-      setValidationError(t("config.saveFailed") + ": " + err);
+      setValidationError(t("config.saveFailed") + ": " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -152,7 +153,7 @@ export function ConfigViewer({
       await navigator.clipboard.writeText(textToCopy);
       setTimeout(() => setCopying(false), 2000);
     } catch (err) {
-      console.error("Failed to copy:", err);
+      toast.error(String(err instanceof Error ? err.message : err), { duration: 5000 });
       setCopying(false);
     }
   };
@@ -173,14 +174,14 @@ export function ConfigViewer({
         await writeTextFile(filePath, textToExport);
       }
     } catch (err) {
-      console.error("Failed to export:", err);
+      toast.error(t("settings.exportFailed") + ": " + (err instanceof Error ? err.message : String(err)), { duration: 5000 });
     } finally {
       setExporting(false);
     }
   };
 
   return (
-    <dialog className="modal modal-open">
+    <dialog className="modal modal-open" onClose={onClose}>
       <div className="modal-box max-w-3xl max-h-[85vh]">
         <h3 className="font-bold text-lg mb-2">
           {t("config.title", { name })}

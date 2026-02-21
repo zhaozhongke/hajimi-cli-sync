@@ -30,7 +30,15 @@ pub struct OpencodeStatus {
 }
 
 fn get_opencode_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".config").join("opencode"))
+    // Respect XDG_CONFIG_HOME on Linux (consistent with lib.rs::get_config_folder_path).
+    let config_base = std::env::var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::home_dir()
+                .map(|h| h.join(".config"))
+                .unwrap_or_else(|| PathBuf::from(".config"))
+        });
+    Some(config_base.join("opencode"))
 }
 
 fn get_config_path() -> Option<PathBuf> {
@@ -237,9 +245,7 @@ pub fn restore_opencode_config() -> Result<(), String> {
     let backup_path =
         config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
     if backup_path.exists() {
-        if config_path.exists() {
-            fs::remove_file(&config_path).map_err(|e| format!("Failed to remove config: {}", e))?;
-        }
+        // Atomic rename replaces the target file directly — no intermediate delete needed.
         fs::rename(&backup_path, &config_path)
             .map_err(|e| format!("Failed to restore config: {}", e))?;
         Ok(())

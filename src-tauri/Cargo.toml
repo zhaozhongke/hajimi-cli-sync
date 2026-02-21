@@ -1,6 +1,6 @@
 [package]
 name = "hajimi-cli-sync"
-version = "1.2.0"
+version = "1.3.0"
 description = "Sync CLI tool configurations with one click"
 authors = ["hajimi"]
 license = "MIT"
@@ -26,13 +26,14 @@ toml = "0.8"
 toml_edit = "0.22"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "cookies"], default-features = false }
 thiserror = "2.0"
-fs2 = "0.4"
 sysinfo = "0.33"
 tokio = { version = "1", features = ["full"] }
 zip = "2.2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 chrono = "0.4.43"
+rusqlite = { version = "0.31", features = ["bundled"] }
+uuid = { version = "1.11", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"

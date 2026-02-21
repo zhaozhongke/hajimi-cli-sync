@@ -252,7 +252,12 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
                 "Droid must be installed from https://factory.ai".to_string(),
             ));
         }
-        _ => tool,
+        _ => {
+            return Err(SyncError::Other(format!(
+                "Unknown tool '{}'. Only known tools can be installed.",
+                tool
+            )));
+        }
     };
 
     tracing::info!("[auto_installer] Installing npm package: {}", package_name);
@@ -408,10 +413,28 @@ async fn download_portable_git() -> Result<()> {
         .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
 
+    // SECURITY: Enforce a 500 MB size limit
+    const MAX_DOWNLOAD_SIZE: u64 = 500 * 1024 * 1024;
+    if let Some(len) = response.content_length() {
+        if len > MAX_DOWNLOAD_SIZE {
+            return Err(SyncError::Other(format!(
+                "Download too large: {} bytes (max {})",
+                len, MAX_DOWNLOAD_SIZE
+            )));
+        }
+    }
+
     let bytes = response
         .bytes()
         .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
+
+    if bytes.len() as u64 > MAX_DOWNLOAD_SIZE {
+        return Err(SyncError::Other(format!(
+            "Download too large: {} bytes (max {})",
+            bytes.len(), MAX_DOWNLOAD_SIZE
+        )));
+    }
 
     let zip_path = git_dir.join("mingit.zip");
     fs::write(&zip_path, &bytes).map_err(|e| SyncError::FileWriteFailed {
@@ -459,7 +482,26 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<()>
         let mut file = archive
             .by_index(i)
             .map_err(|e| SyncError::Other(e.to_string()))?;
+
+        // SECURITY: Validate extracted path stays inside dest (Zip Slip prevention)
         let outpath = dest.join(file.name());
+        let canonical_dest = dest.canonicalize().map_err(|e| SyncError::Other(e.to_string()))?;
+        // For new files, canonicalize the parent (which must exist after create_dir_all)
+        let check_path = if outpath.exists() {
+            outpath.canonicalize().map_err(|e| SyncError::Other(e.to_string()))?
+        } else if let Some(parent) = outpath.parent() {
+            std::fs::create_dir_all(parent).ok();
+            let canon_parent = parent.canonicalize().map_err(|e| SyncError::Other(e.to_string()))?;
+            canon_parent.join(outpath.file_name().unwrap_or_default())
+        } else {
+            return Err(SyncError::Other(format!("Invalid zip entry path: {}", file.name())));
+        };
+        if !check_path.starts_with(&canonical_dest) {
+            return Err(SyncError::Other(format!(
+                "Zip entry escapes target directory: {}",
+                file.name()
+            )));
+        }
 
         if file.is_dir() {
             std::fs::create_dir_all(&outpath).map_err(|e| SyncError::DirectoryCreationFailed {
@@ -518,18 +560,10 @@ async fn install_nodejs_standalone() -> Result<()> {
 /// Linux: 使用NodeSource安装Node.js
 #[cfg(target_os = "linux")]
 async fn install_nodejs_nodesource() -> Result<()> {
-    // 下载并执行NodeSource安装脚本
-    let script = "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -";
-    run_silent_command("sh", &["-c", script]).await?;
-
-    // 安装Node.js
-    if check_command_exists("apt-get") {
-        run_silent_command("sudo", &["apt-get", "install", "-y", "nodejs"]).await?;
-    } else {
-        run_silent_command("sudo", &["yum", "install", "-y", "nodejs"]).await?;
-    }
-
-    Ok(())
+    // SECURITY: Instead of piping a remote script to sudo bash, use the standalone
+    // binary approach which doesn't require root and doesn't execute remote scripts.
+    tracing::info!("[auto_installer] Installing Node.js via standalone binary (no sudo required)");
+    install_nodejs_standalone().await
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -559,10 +593,28 @@ async fn download_and_extract(url: &str, dest: &std::path::Path) -> Result<()> {
         .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
 
+    // SECURITY: Enforce a 500 MB size limit to prevent disk exhaustion
+    const MAX_DOWNLOAD_SIZE: u64 = 500 * 1024 * 1024;
+    if let Some(len) = response.content_length() {
+        if len > MAX_DOWNLOAD_SIZE {
+            return Err(SyncError::Other(format!(
+                "Download too large: {} bytes (max {})",
+                len, MAX_DOWNLOAD_SIZE
+            )));
+        }
+    }
+
     let bytes = response
         .bytes()
         .await
         .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
+
+    if bytes.len() as u64 > MAX_DOWNLOAD_SIZE {
+        return Err(SyncError::Other(format!(
+            "Download too large: {} bytes (max {})",
+            bytes.len(), MAX_DOWNLOAD_SIZE
+        )));
+    }
 
     let temp_file = dest.join("download.tmp");
     fs::write(&temp_file, &bytes).map_err(|e| SyncError::FileWriteFailed {
@@ -595,7 +647,7 @@ fn extract_tar(archive_path: &std::path::Path, dest: &std::path::Path) -> Result
 
     let flag = if extension == "xz" { "xf" } else { "xzf" };
 
-    Command::new("tar")
+    let output = Command::new("tar")
         .arg(flag)
         .arg(archive_path)
         .arg("-C")
@@ -606,6 +658,14 @@ fn extract_tar(archive_path: &std::path::Path, dest: &std::path::Path) -> Result
             command: "tar".to_string(),
             reason: e.to_string(),
         })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(SyncError::CommandExecutionFailed {
+            command: "tar".to_string(),
+            reason: format!("tar exited with {}: {}", output.status, stderr),
+        });
+    }
 
     Ok(())
 }

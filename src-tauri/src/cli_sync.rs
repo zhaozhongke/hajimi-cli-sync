@@ -84,16 +84,6 @@ impl CliApp {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CliStatus {
-    pub installed: bool,
-    pub version: Option<String>,
-    pub is_synced: bool,
-    pub has_backup: bool,
-    pub current_base_url: Option<String>,
-    pub files: Vec<String>,
-}
-
 /// Check if a CLI tool is installed and get its version
 pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
     let name = app.as_str();
@@ -128,15 +118,19 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
         }
 
         if !file.path.exists() {
-            // Gemini: settings.json/config.json are optional if the other exists
-            if app == &CliApp::Gemini
-                && (file.name == "settings.json" || file.name == "config.json")
-            {
+                // .claude.json and Gemini's optional files are not required for synced status.
+                // Only settings.json (Claude) / config.toml (Codex) / .env (Gemini) are mandatory.
+                if app == &CliApp::Claude && file.name == ".claude.json" {
+                    continue;
+                }
+                if app == &CliApp::Gemini
+                    && (file.name == "settings.json" || file.name == "config.json")
+                {
+                    continue;
+                }
+                all_synced = false;
                 continue;
             }
-            all_synced = false;
-            continue;
-        }
 
         let content = match fs::read_to_string(&file.path) {
             Ok(c) => c,
@@ -163,29 +157,41 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
                     } else {
                         all_synced = false;
                     }
-                } else if file.name == ".claude.json" {
-                    let json: Value = serde_json::from_str(&content).unwrap_or_default();
-                    if json.get("hasCompletedOnboarding") != Some(&Value::Bool(true)) {
-                        all_synced = false;
-                    }
                 }
+                // .claude.json is optional — skip is_synced check for it
             }
             CliApp::Codex => {
                 if file.name == "config.toml" {
-                    // Safe: regex pattern is a compile-time constant
-                    if let Ok(re) = regex::Regex::new(r#"(?m)^\s*base_url\s*=\s*['"]([^'"]+)['"]"#)
-                    {
-                        if let Some(caps) = re.captures(&content) {
-                            let url = &caps[1];
-                            current_base_url = Some(url.to_string());
+                    use toml_edit::DocumentMut;
+                    let synced = content
+                        .parse::<DocumentMut>()
+                        .ok()
+                        .and_then(|doc| {
+                            let provider = doc
+                                .get("model_provider")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            if provider != "custom" {
+                                return None;
+                            }
+                            doc.get("model_providers")
+                                .and_then(|mp| mp.as_table())
+                                .and_then(|t| t.get("custom"))
+                                .and_then(|c| c.as_table())
+                                .and_then(|t| t.get("base_url"))
+                                .and_then(|v| v.as_str())
+                                .map(|u| u.to_string())
+                        });
+                    match synced {
+                        Some(url) => {
+                            current_base_url = Some(url.clone());
                             if url.trim_end_matches('/') != proxy_url.trim_end_matches('/') {
                                 all_synced = false;
                             }
-                        } else {
+                        }
+                        None => {
                             all_synced = false;
                         }
-                    } else {
-                        all_synced = false;
                     }
                 }
             }
@@ -254,6 +260,28 @@ pub fn sync_config(
                         serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}));
                     if let Some(obj) = json.as_object_mut() {
                         obj.insert("hasCompletedOnboarding".to_string(), Value::Bool(true));
+                        obj.insert("autoUpdates".to_string(), Value::Bool(false));
+
+                        // Pre-approve the custom API key to skip the trust prompt
+                        if !api_key.is_empty() {
+                            let responses = obj
+                                .entry("customApiKeyResponses")
+                                .or_insert(serde_json::json!({}));
+                            if let Some(resp_obj) = responses.as_object_mut() {
+                                let approved = resp_obj
+                                    .entry("approved")
+                                    .or_insert(serde_json::json!([]));
+                                if let Some(arr) = approved.as_array_mut() {
+                                    let key_val = Value::String(api_key.to_string());
+                                    if !arr.contains(&key_val) {
+                                        arr.push(key_val);
+                                    }
+                                }
+                                resp_obj
+                                    .entry("rejected")
+                                    .or_insert(serde_json::json!([]));
+                            }
+                        }
                     }
                     content = utils::to_json_pretty(&json)?;
                 } else if file.name == "settings.json" {
@@ -460,6 +488,24 @@ pub fn restore_config(app: &CliApp) -> Result<(), String> {
                         env_obj.remove("ANTHROPIC_API_KEY");
                     }
                     Some(serde_json::to_string_pretty(&json).unwrap_or(content.clone()))
+                } else if file.name == ".claude.json" {
+                    let mut json: Value = serde_json::from_str(&content).unwrap_or_default();
+                    let mut changed = false;
+                    if let Some(obj) = json.as_object_mut() {
+                        if obj.contains_key("autoUpdates") {
+                            obj.remove("autoUpdates");
+                            changed = true;
+                        }
+                        if obj.contains_key("customApiKeyResponses") {
+                            obj.remove("customApiKeyResponses");
+                            changed = true;
+                        }
+                    }
+                    if changed {
+                        Some(serde_json::to_string_pretty(&json).unwrap_or(content.clone()))
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -489,6 +535,7 @@ pub fn restore_config(app: &CliApp) -> Result<(), String> {
                         .filter(|l| {
                             !l.starts_with("GOOGLE_GEMINI_BASE_URL=")
                                 && !l.starts_with("GEMINI_API_KEY=")
+                                && !l.starts_with("GOOGLE_GEMINI_MODEL=")
                         })
                         .collect();
                     let mut result = lines.join("\n");
@@ -688,6 +735,150 @@ some_key = "keep"
         assert!(result.contains("model_provider = \"custom\""));
     }
 
+    /// 测试Codex TOML状态检测 — 精确复现真实文件格式（含空 [model_providers] 表头）
+    #[test]
+    fn test_codex_sync_status_with_blank_providers_header() {
+        use toml_edit::DocumentMut;
+
+        // 精确复制真实文件：[model_providers] 单独占一行，下面再有子表
+        let content = "model_provider = \"custom\"\nmodel = \"claude-opus-4-6-thinking\"\nmodel_reasoning_effort = \"medium\"\n\n[model_providers]\n\n[model_providers.hajimi]\nname = \"hajimi\"\nwire_api = \"responses\"\nenv_key = \"ANTIGRAVITY_API_KEY\" \nrequires_openai_auth = false\nbase_url = \"http://127.0.0.1:8045/v1\"\n\n[model_providers.custom]\nname = \"custom\"\nwire_api = \"responses\"\nrequires_openai_auth = true\nbase_url = \"http://localhost:8045/v1\"\nmodel = \"claude-opus-4-6-thinking\"\n";
+
+        let proxy_url = "http://localhost:8045/v1";
+
+        let doc = content.parse::<DocumentMut>().unwrap();
+
+        let provider = doc.get("model_provider").and_then(|v| v.as_str()).unwrap_or("");
+        assert_eq!(provider, "custom");
+
+        let mp_item = doc.get("model_providers").unwrap();
+        let mp_type = mp_item.type_name();
+        println!("model_providers type_name = {}", mp_type);
+
+        // as_table() path
+        let via_table = mp_item.as_table()
+            .and_then(|t| t.get("custom"))
+            .and_then(|c| {
+                println!("custom type_name = {}", c.type_name());
+                c.as_table()
+            })
+            .and_then(|t| t.get("base_url"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        println!("via as_table() = {:?}", via_table);
+
+        assert!(
+            via_table.is_some(),
+            "base_url must be reachable via as_table() — mp type was: {}",
+            mp_type
+        );
+        assert_eq!(
+            via_table.unwrap().trim_end_matches('/'),
+            proxy_url.trim_end_matches('/')
+        );
+    }
+
+    /// 测试Codex TOML写入 — 已有其他provider时能否正确写入custom
+    #[test]
+    fn test_codex_toml_write_with_existing_providers() {
+        use toml_edit::{value, DocumentMut};
+
+        // Real-world config.toml that already has [model_providers.hajimi]
+        let existing = r#"model_provider = "custom"
+model = "claude-opus-4-6-thinking"
+
+[model_providers]
+
+[model_providers.hajimi]
+name = "hajimi"
+base_url = "http://127.0.0.1:8045/v1"
+
+[model_providers.custom]
+name = "custom"
+base_url = "http://old-url/v1"
+"#;
+        let proxy_url = "http://localhost:8045/v1";
+
+        let mut doc = existing.parse::<DocumentMut>().unwrap();
+
+        // This is what sync_config does:
+        let providers = doc
+            .entry("model_providers")
+            .or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
+        let wrote_custom = if let Some(p_table) = providers.as_table_mut() {
+            let custom = p_table
+                .entry("custom")
+                .or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
+            if let Some(c_table) = custom.as_table_mut() {
+                c_table.insert("base_url", value(proxy_url));
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        assert!(wrote_custom, "as_table_mut() on existing model_providers should succeed and allow writing custom.base_url");
+
+        // Verify the written content can be read back
+        let written = doc.to_string();
+        let doc2 = written.parse::<DocumentMut>().unwrap();
+        let result = doc2.get("model_providers")
+            .and_then(|mp| mp.as_table())
+            .and_then(|t| t.get("custom"))
+            .and_then(|c| c.as_table())
+            .and_then(|t| t.get("base_url"))
+            .and_then(|v| v.as_str())
+            .map(|u| u.to_string());
+
+        assert_eq!(result.as_deref(), Some(proxy_url), "Written base_url should be readable back");
+    }
+
+    /// 测试Codex TOML状态检测 — 含多个provider的真实文件
+    #[test]
+    fn test_codex_sync_status_detection() {
+        use toml_edit::DocumentMut;
+
+        // Real-world config.toml with multiple providers (hajimi + custom)
+        let content = r#"model_provider = "custom"
+model = "claude-opus-4-6-thinking"
+
+[model_providers]
+
+[model_providers.hajimi]
+name = "hajimi"
+base_url = "http://127.0.0.1:8045/v1"
+
+[model_providers.custom]
+name = "custom"
+wire_api = "responses"
+requires_openai_auth = true
+base_url = "http://localhost:8045/v1"
+"#;
+        let proxy_url = "http://localhost:8045/v1";
+
+        let doc = content.parse::<DocumentMut>().unwrap();
+
+        let provider = doc.get("model_provider").and_then(|v| v.as_str()).unwrap_or("");
+        assert_eq!(provider, "custom", "model_provider should be 'custom'");
+
+        // Test the fixed parse chain (with as_table())
+        let result = doc.get("model_providers")
+            .and_then(|mp| mp.as_table())
+            .and_then(|t| t.get("custom"))
+            .and_then(|c| c.as_table())
+            .and_then(|t| t.get("base_url"))
+            .and_then(|v| v.as_str())
+            .map(|u| u.to_string());
+
+        assert!(result.is_some(), "base_url should be found via as_table() chain");
+        assert_eq!(
+            result.unwrap().trim_end_matches('/'),
+            proxy_url.trim_end_matches('/'),
+            "URL should match"
+        );
+    }
+
     /// 测试Gemini .env写入
     #[test]
     fn test_gemini_env_write() {
@@ -779,7 +970,7 @@ some_key = "keep"
         fs::write(&file_path, "original content").unwrap();
 
         // 第一次备份
-        utils::create_backup(&file_path, BACKUP_SUFFIX).unwrap();
+        utils::create_rotated_backup(&file_path, BACKUP_SUFFIX).unwrap();
         let backup_path = file_path.with_file_name(format!("test.json{}", BACKUP_SUFFIX));
         assert!(backup_path.exists());
         assert_eq!(
@@ -791,7 +982,7 @@ some_key = "keep"
         fs::write(&file_path, "modified content").unwrap();
 
         // 第二次备份不应覆盖
-        utils::create_backup(&file_path, BACKUP_SUFFIX).unwrap();
+        utils::create_rotated_backup(&file_path, BACKUP_SUFFIX).unwrap();
         assert_eq!(
             fs::read_to_string(&backup_path).unwrap(),
             "original content"
@@ -853,6 +1044,141 @@ some_key = "keep"
         // 用户字段保留
         assert_eq!(json["env"]["USER_CUSTOM_VAR"], "keep-me");
         assert_eq!(json["otherSetting"], true);
+    }
+
+    /// 测试sync写入autoUpdates和customApiKeyResponses到.claude.json
+    #[test]
+    fn test_claude_sync_writes_auto_updates_and_key_responses() {
+        let content = "{}";
+        let api_key = "sk-test-key-123";
+
+        let mut json: Value =
+            serde_json::from_str(content).unwrap_or_else(|_| serde_json::json!({}));
+        if let Some(obj) = json.as_object_mut() {
+            obj.insert("hasCompletedOnboarding".to_string(), Value::Bool(true));
+            obj.insert("autoUpdates".to_string(), Value::Bool(false));
+
+            if !api_key.is_empty() {
+                let responses = obj
+                    .entry("customApiKeyResponses")
+                    .or_insert(serde_json::json!({}));
+                if let Some(resp_obj) = responses.as_object_mut() {
+                    let approved = resp_obj
+                        .entry("approved")
+                        .or_insert(serde_json::json!([]));
+                    if let Some(arr) = approved.as_array_mut() {
+                        let key_val = Value::String(api_key.to_string());
+                        if !arr.contains(&key_val) {
+                            arr.push(key_val);
+                        }
+                    }
+                    resp_obj
+                        .entry("rejected")
+                        .or_insert(serde_json::json!([]));
+                }
+            }
+        }
+
+        assert_eq!(json["hasCompletedOnboarding"], true);
+        assert_eq!(json["autoUpdates"], false);
+        assert_eq!(json["customApiKeyResponses"]["approved"][0], "sk-test-key-123");
+        assert!(json["customApiKeyResponses"]["rejected"].is_array());
+    }
+
+    /// 测试customApiKeyResponses去重
+    #[test]
+    fn test_claude_sync_key_deduplication() {
+        let existing = serde_json::json!({
+            "customApiKeyResponses": {
+                "approved": ["sk-existing-key"],
+                "rejected": []
+            }
+        });
+
+        let mut json = existing.clone();
+        let api_key = "sk-existing-key"; // 重复key
+
+        if let Some(obj) = json.as_object_mut() {
+            let responses = obj
+                .entry("customApiKeyResponses")
+                .or_insert(serde_json::json!({}));
+            if let Some(resp_obj) = responses.as_object_mut() {
+                let approved = resp_obj
+                    .entry("approved")
+                    .or_insert(serde_json::json!([]));
+                if let Some(arr) = approved.as_array_mut() {
+                    let key_val = Value::String(api_key.to_string());
+                    if !arr.contains(&key_val) {
+                        arr.push(key_val);
+                    }
+                }
+            }
+        }
+
+        // 应该仍然只有1个key，不会重复追加
+        assert_eq!(json["customApiKeyResponses"]["approved"].as_array().unwrap().len(), 1);
+    }
+
+    /// 测试restore清理.claude.json中的autoUpdates和customApiKeyResponses
+    #[test]
+    fn test_restore_cleans_claude_json_injected_fields() {
+        let config = serde_json::json!({
+            "numStartups": 42,
+            "theme": "dark",
+            "autoUpdates": false,
+            "hasCompletedOnboarding": true,
+            "customApiKeyResponses": {
+                "approved": ["sk-test"],
+                "rejected": []
+            },
+            "tipsHistory": { "continue": 10 }
+        });
+
+        let mut json = config.clone();
+        let mut changed = false;
+        if let Some(obj) = json.as_object_mut() {
+            if obj.contains_key("autoUpdates") {
+                obj.remove("autoUpdates");
+                changed = true;
+            }
+            if obj.contains_key("customApiKeyResponses") {
+                obj.remove("customApiKeyResponses");
+                changed = true;
+            }
+        }
+
+        assert!(changed);
+        // 注入字段已清理
+        assert!(json.get("autoUpdates").is_none());
+        assert!(json.get("customApiKeyResponses").is_none());
+        // 用户原有字段完整保留
+        assert_eq!(json["numStartups"], 42);
+        assert_eq!(json["theme"], "dark");
+        assert_eq!(json["hasCompletedOnboarding"], true);
+        assert_eq!(json["tipsHistory"]["continue"], 10);
+    }
+
+    /// 测试restore对无注入字段的.claude.json不做修改
+    #[test]
+    fn test_restore_skips_clean_claude_json() {
+        let config = serde_json::json!({
+            "numStartups": 10,
+            "theme": "light"
+        });
+
+        let json = config.clone();
+        let mut changed = false;
+        if let Some(obj) = json.as_object() {
+            if obj.contains_key("autoUpdates") {
+                changed = true;
+            }
+            if obj.contains_key("customApiKeyResponses") {
+                changed = true;
+            }
+        }
+
+        // 没有注入字段时不应写入文件
+        assert!(!changed);
     }
 
     /// 测试Codex restore清理provider字段

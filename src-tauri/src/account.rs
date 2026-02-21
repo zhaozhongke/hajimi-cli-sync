@@ -145,6 +145,16 @@ fn auth_headers(session_cookie: &str, user_id: i64) -> Result<HeaderMap, String>
     Ok(headers)
 }
 
+/// Helper: lock the AccountState mutex with poison recovery.
+/// If a thread panicked while holding the lock, we recover the inner data
+/// instead of permanently locking out all subsequent callers.
+fn lock_account(state: &AccountState) -> Result<std::sync::MutexGuard<'_, AccountStateInner>, String> {
+    state.inner.lock().or_else(|poisoned| {
+        tracing::warn!("AccountState mutex was poisoned, recovering");
+        Ok(poisoned.into_inner())
+    })
+}
+
 // ── Tauri commands ──
 
 /// Check platform info (public, no auth needed)
@@ -271,10 +281,7 @@ pub async fn account_login(
 
     // Store in state
     {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "INTERNAL_ERROR".to_string())?;
+        let mut inner = lock_account(&state)?;
         inner.session_cookie = Some(session.clone());
         inner.user_id = Some(id);
         inner.username = Some(uname.clone());
@@ -295,18 +302,9 @@ pub async fn account_get_tokens(
     state: tauri::State<'_, AccountState>,
 ) -> Result<Vec<ApiTokenInfo>, String> {
     let (base, session, user_id) = {
-        let inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Internal state error".to_string())?;
-        let base = inner
-            .base_url
-            .clone()
-            .ok_or("Not logged in")?;
-        let session = inner
-            .session_cookie
-            .clone()
-            .ok_or("Not logged in")?;
+        let inner = lock_account(&state)?;
+        let base = inner.base_url.clone().ok_or("Not logged in")?;
+        let session = inner.session_cookie.clone().ok_or("Not logged in")?;
         let user_id = inner.user_id.ok_or("Not logged in")?;
         (base, session, user_id)
     };
@@ -370,7 +368,12 @@ pub async fn account_get_tokens(
                 used_quota: t.used_quota.unwrap_or(0),
                 remain_quota: t.remain_quota.unwrap_or(0),
                 unlimited_quota: t.unlimited_quota.unwrap_or(false),
-                expired_time: t.expired_time.unwrap_or(-1),
+                // new-api uses -1 for "never expires", but some versions return 0.
+                // Treat both as never-expires to avoid false "expired" display.
+                expired_time: match t.expired_time.unwrap_or(-1) {
+                    0 | -1 => -1,
+                    ts => ts,
+                },
                 model_limits_enabled: t.model_limits_enabled.unwrap_or(false),
                 model_limits,
             }
@@ -386,10 +389,7 @@ pub async fn account_check_session(
     state: tauri::State<'_, AccountState>,
 ) -> Result<AccountInfo, String> {
     let (base, session, user_id) = {
-        let inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Internal state error".to_string())?;
+        let inner = lock_account(&state)?;
         let base = inner.base_url.clone().ok_or("NOT_LOGGED_IN")?;
         let session = inner.session_cookie.clone().ok_or("NOT_LOGGED_IN")?;
         let user_id = inner.user_id.ok_or("NOT_LOGGED_IN")?;
@@ -410,7 +410,7 @@ pub async fn account_check_session(
 
     if status_code.as_u16() == 401 || status_code.as_u16() == 403 {
         // Clear entire expired session
-        if let Ok(mut inner) = state.inner.lock() {
+        if let Ok(mut inner) = lock_account(&state) {
             inner.session_cookie = None;
             inner.user_id = None;
             inner.username = None;
@@ -452,10 +452,7 @@ pub async fn account_restore_session(
     state: tauri::State<'_, AccountState>,
 ) -> Result<(), String> {
     {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Internal state error".to_string())?;
+        let mut inner = lock_account(&state)?;
         inner.base_url = Some(normalize_base(&base_url));
         inner.session_cookie = Some(session_cookie);
         inner.user_id = Some(user_id);
@@ -471,10 +468,7 @@ pub async fn account_logout(
 ) -> Result<(), String> {
     // Optionally call server logout
     let (base, session, user_id) = {
-        let inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Internal state error".to_string())?;
+        let inner = lock_account(&state)?;
         (
             inner.base_url.clone(),
             inner.session_cookie.clone(),
@@ -495,10 +489,7 @@ pub async fn account_logout(
     }
 
     // Clear local state
-    let mut inner = state
-        .inner
-        .lock()
-        .map_err(|_| "Internal state error".to_string())?;
+    let mut inner = lock_account(&state)?;
     inner.session_cookie = None;
     inner.user_id = None;
     inner.username = None;

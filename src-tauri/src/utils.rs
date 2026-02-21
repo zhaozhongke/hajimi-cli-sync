@@ -14,15 +14,6 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-/// 命令执行错误类型
-#[derive(Debug)]
-pub enum CommandError {
-    NotFound,
-    PermissionDenied,
-    Timeout,
-    ExecutionFailed(String),
-}
-
 /// Extract a version string from raw CLI output.
 /// Handles formats like "claude/2.1.2 (Claude Code)", "codex-cli 0.86.0", "v2.0.1"
 pub fn extract_version(raw: &str) -> String {
@@ -427,6 +418,23 @@ pub fn validate_url(url: &str) -> Result<()> {
         });
     }
     if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
+        return Err(SyncError::InvalidUrl {
+            url: trimmed.to_string(),
+        });
+    }
+    // SECURITY: Reject URLs without a valid host to prevent SSRF against
+    // metadata endpoints or bare schemes like "http://" alone.
+    let after_scheme = if trimmed.starts_with("https://") {
+        &trimmed[8..]
+    } else {
+        &trimmed[7..]
+    };
+    // Must have at least one char before any '/' or ':'
+    let host_end = after_scheme.find('/').unwrap_or(after_scheme.len());
+    let host_part = &after_scheme[..host_end];
+    // Strip optional port
+    let host_only = host_part.split(':').next().unwrap_or("");
+    if host_only.is_empty() {
         return Err(SyncError::InvalidUrl {
             url: trimmed.to_string(),
         });

@@ -8,7 +8,7 @@ import { ModelSelector } from "./ModelSelector";
 import type { ApiTokenInfo } from "../types";
 
 interface AccountLoginProps {
-  onConfigReady: (url: string, apiKey: string) => void;
+  onConfigReady: (url: string, apiKey: string, tokenName: string) => void;
   defaultModel: string;
   onModelChange: (model: string) => void;
   apiModels: string[];
@@ -82,10 +82,11 @@ export function AccountLogin({
       const info = await checkSession();
       setSessionChecked(true);
       if (info) {
-        fetchTokens();
+        await fetchTokens();
       }
     };
     restore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogin = async () => {
@@ -95,7 +96,7 @@ export function AccountLogin({
     if (info) {
       toast.success(t("account.loginSuccess", { name: info.display_name }));
       setPassword("");
-      fetchTokens();
+      await fetchTokens();
     }
   };
 
@@ -111,8 +112,9 @@ export function AccountLogin({
   const handleSelectToken = (token: ApiTokenInfo) => {
     setSelectedTokenId(token.id);
     setConfigApplied(true);
-    onConfigReady(platformUrl, token.key);
-    toast.success(t("account.tokenSelected", { name: token.name || `Token #${token.id}` }));
+    const tokenName = token.name || t("account.defaultTokenName", { id: token.id });
+    onConfigReady(platformUrl, token.key, tokenName);
+    toast.success(t("account.tokenSelected", { name: tokenName }));
   };
 
   const handleRegister = () => {

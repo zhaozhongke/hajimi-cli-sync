@@ -1,10 +1,9 @@
 {
   "app": {
-    "title": "Hajimi Switch",
+    "title": "哈基米AI Switch",
     "subtitle": "One-click sync your API config to local AI tools",
     "docs": "Docs",
     "brand": "Hajimi AI",
-    "statusSynced": "{{count}} synced",
     "statusNone": "Not synced yet",
     "connected": "Connected",
     "notConnected": "Not connected",
@@ -13,11 +12,11 @@
   },
   "steps": {
     "step1": "API Address",
-    "step1Hint": "Enter your Hajimi proxy address",
+    "step1Hint": "Enter your 哈基米AI proxy address",
     "step2": "API Key",
     "step2Hint": "Paste the key from your subscription",
     "step3": "Default Model",
-    "step3Hint": "Sync config to all installed AI tools"
+    "step3Hint": "Choose the default model for AI tools"
   },
   "settings": {
     "apiUrl": "API URL",
@@ -93,11 +92,6 @@
     "lobechat": "Settings → Language Model → Add OpenAI-compatible provider → enter API URL and Key",
     "boltai": "Settings → Models → Add Server → select OpenAI Compatible → enter URL and Key"
   },
-  "capability": {
-    "autoSync": "Auto-configurable",
-    "manualStep": "Extra manual step needed",
-    "manualOnly": "Manual config only"
-  },
   "config": {
     "title": "{{name}} Config",
     "close": "Close",
@@ -139,7 +133,8 @@
     "test": "Test",
     "testing": "Testing...",
     "success": "Connection successful",
-    "failed": "Connection failed: {{error}}"
+    "failed": "Connection failed: {{error}}",
+    "failedHint": "Check that the API URL is correct and the key is valid"
   },
   "install": {
     "install": "Install",
@@ -147,6 +142,7 @@
     "download": "Download",
     "installed": "Installed",
     "failed": "Install failed: {{error}}",
+    "failedOpenDownload": "Auto-install failed for {{name}}, opening download page",
     "success": "{{name}} installed successfully",
     "desktopHint": "Desktop app",
     "extensionHint": "VS Code extension",
@@ -161,16 +157,6 @@
     "chat": "AI Chat",
     "agent": "Agents",
     "rp": "Roleplay"
-  },
-  "tabGuide": {
-    "codingDesc": "Write code, fix bugs, and build projects with AI. After syncing, these tools connect to your API automatically.",
-    "codingRecommend": "Recommended: start with Claude Code",
-    "chatDesc": "Chat freely with AI — Q&A, writing, brainstorming. After syncing, these clients connect to your API automatically.",
-    "chatRecommend": "Recommended: install Chatbox for a clean experience",
-    "agentDesc": "Connect AI to your favorite messaging platforms (WhatsApp, Telegram, Discord, etc.) and use it anywhere.",
-    "agentRecommend": "Install OpenClaw to get started",
-    "rpDesc": "Roleplay, storytelling, and immersive conversations. After syncing, import character cards and start chatting.",
-    "rpRecommend": "Install SillyTavern to get started"
   },
   "section": {
     "installed": "Installed",
@@ -188,6 +174,39 @@
     "restore": "Restore",
     "install": "Install"
   },
+  "provider": {
+    "title": "Provider Management",
+    "add": "New Provider",
+    "newTitle": "New Provider",
+    "editTitle": "Edit Provider",
+    "current": "Active",
+    "switch": "Switch",
+    "switching": "Switching provider and syncing config…",
+    "switched": "Switched to \"{{name}}\"",
+    "switchedWithErrors": "Switched with errors on: {{apps}}",
+    "saved": "Provider saved",
+    "deleted": "Provider deleted",
+    "loading": "Loading providers...",
+    "empty": "No providers yet — click \"New Provider\" to get started",
+    "namePlaceholder": "Provider name (e.g. 哈基米AI VIP)",
+    "urlPlaceholder": "API URL (e.g. https://vip.aipro.love)",
+    "apiKeyPlaceholder": "API Key",
+    "defaultModelPlaceholder": "Default model (optional)",
+    "notesPlaceholder": "Notes (optional)",
+    "nameRequired": "Provider name is required",
+    "urlRequired": "API URL is required",
+    "apiKeyRequired": "API Key is required",
+    "cannotDeleteCurrent": "Cannot delete the active provider — switch to another first",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+    "deleteConfirmBtn": "Delete",
+    "showKey": "Show",
+    "hideKey": "Hide",
+    "migratedDefault": "Default Provider"
+  },
+  "purchase": {
+    "title": "No plan yet? Buy on Xianyu →",
+    "hint": "哈基米AI plan — stable, affordable, refundable"
+  },
   "account": {
     "modeManual": "Manual Input",
     "modeAccount": "Account Login",
@@ -198,12 +217,13 @@
     "loggingIn": "Logging in...",
     "loginSuccess": "Welcome back, {{name}}",
     "logoutSuccess": "Logged out",
+    "defaultTokenName": "Token #{{id}}",
     "noAccount": "No account? Register now",
     "noTokens": "No API keys available",
     "selectKey": "Select",
     "selected": "Selected",
     "tokenSelected": "Selected key \"{{name}}\"",
-    "configReady": "Config ready — you can now sync to the AI tools below",
+    "configReady": "Key ready — synced to installed tools automatically",
     "used": "Used",
     "remaining": "Remaining",
     "expires": "Expires",

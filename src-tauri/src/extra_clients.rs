@@ -604,37 +604,6 @@ fn check_sillytavern_synced(
     (is_synced, has_backup, current_url)
 }
 
-fn check_vscode_env_synced(
-    content: &str,
-    proxy_url: &str,
-    has_backup: bool,
-) -> (bool, bool, Option<String>) {
-    let json: Value = serde_json::from_str(content).unwrap_or_default();
-
-    // Check terminal.integrated.env for our proxy URL
-    let env_key = if cfg!(target_os = "macos") {
-        "terminal.integrated.env.osx"
-    } else if cfg!(target_os = "linux") {
-        "terminal.integrated.env.linux"
-    } else {
-        "terminal.integrated.env.windows"
-    };
-
-    let current_url = json
-        .get(env_key)
-        .and_then(|e| e.get("OPENAI_BASE_URL"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let is_synced = current_url
-        .as_deref()
-        .map_or(false, |u| utils::urls_match(u, proxy_url));
-
-    (is_synced, has_backup, current_url)
-}
-
-// urls_match: use crate::utils::urls_match
-
 // ---------------------------------------------------------------------------
 // Sync
 // ---------------------------------------------------------------------------
@@ -816,50 +785,6 @@ fn sync_sillytavern(proxy_url: &str, api_key: &str) -> Result<(), String> {
     utils::atomic_write(&secrets_path, &content).map_err(|e| e.to_string())
 }
 
-/// Write proxy env vars into VS Code / Cursor settings.json.
-/// This makes the API key and base URL available in the integrated terminal
-/// and to extensions that read these env vars.
-fn sync_vscode_env(
-    settings_path: Option<PathBuf>,
-    proxy_url: &str,
-    api_key: &str,
-) -> Result<(), String> {
-    let path = settings_path.ok_or("Failed to determine settings.json path")?;
-
-    ensure_parent_dir(&path)?;
-    utils::create_rotated_backup(&path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
-
-    let mut config: Value = read_or_empty_json(&path);
-    if !config.is_object() {
-        config = serde_json::json!({});
-    }
-
-    let env_key = if cfg!(target_os = "macos") {
-        "terminal.integrated.env.osx"
-    } else if cfg!(target_os = "linux") {
-        "terminal.integrated.env.linux"
-    } else {
-        "terminal.integrated.env.windows"
-    };
-
-    let obj = config.as_object_mut().unwrap();
-    let env = obj.entry(env_key).or_insert(serde_json::json!({}));
-
-    if let Some(env_obj) = env.as_object_mut() {
-        env_obj.insert(
-            "OPENAI_BASE_URL".to_string(),
-            Value::String(proxy_url.to_string()),
-        );
-        env_obj.insert(
-            "OPENAI_API_KEY".to_string(),
-            Value::String(api_key.to_string()),
-        );
-    }
-
-    let content = utils::to_json_pretty(&config).map_err(|e| e.to_string())?;
-    utils::atomic_write(&path, &content).map_err(|e| e.to_string())
-}
-
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
@@ -951,6 +876,7 @@ fn read_or_empty_json(path: &PathBuf) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::urls_match;
     use std::fs;
     use tempfile::TempDir;
 
@@ -1217,8 +1143,27 @@ mod tests {
     }
 }
 
-pub fn write_extra_config_content(_client: &ExtraClient, _file_name: &str, _content: &str) -> Result<(), String> {
-    Err("Editing config for this client is not supported yet".to_string())
+pub fn write_extra_config_content(client: &ExtraClient, _file_name: &str, content: &str) -> Result<(), String> {
+    // ClaudeVSCode delegates to cli_sync
+    if matches!(client, ExtraClient::ClaudeVSCode) {
+        let cli_app = cli_sync::CliApp::Claude;
+        let files = cli_app.config_files();
+        let name = files
+            .first()
+            .map(|f| f.name.as_str())
+            .unwrap_or("settings.json");
+        return cli_sync::write_config_content(&cli_app, name, content);
+    }
+
+    let config_path = config_path_for(client).ok_or_else(|| {
+        format!(
+            "{} does not use a writable config file",
+            client.display_name()
+        )
+    })?;
+
+    utils::atomic_write(&config_path, content)
+        .map_err(|e| format!("Failed to write config for {}: {}", client.display_name(), e))
 }
 
 /// Return the parent folder of the config file for a given client.
