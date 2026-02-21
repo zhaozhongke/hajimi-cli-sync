@@ -13,7 +13,7 @@ pub fn save_backup(db: &Database, app_type: &str, content: &str) -> Result<(), S
          VALUES (?1, ?2, ?3)",
         rusqlite::params![app_type, content, now],
     )
-    .map_err(|e| format!("save_backup: {}", e))?;
+    .map_err(|e| format!("save_backup: {e}"))?;
     Ok(())
 }
 
@@ -22,13 +22,13 @@ pub fn get_backup(db: &Database, app_type: &str) -> Result<Option<String>, Strin
     let conn = lock_conn!(db.conn);
     let mut stmt = conn
         .prepare("SELECT original_config FROM config_backup WHERE app_type = ?1")
-        .map_err(|e| format!("prepare get_backup: {}", e))?;
+        .map_err(|e| format!("prepare get_backup: {e}"))?;
     let mut rows = stmt
         .query_map([app_type], |row| row.get(0))
-        .map_err(|e| format!("query get_backup: {}", e))?;
+        .map_err(|e| format!("query get_backup: {e}"))?;
     match rows.next() {
         Some(Ok(v)) => Ok(Some(v)),
-        Some(Err(e)) => Err(format!("row get_backup: {}", e)),
+        Some(Err(e)) => Err(format!("row get_backup: {e}")),
         None => Ok(None),
     }
 }
@@ -40,15 +40,16 @@ pub fn delete_backup(db: &Database, app_type: &str) -> Result<(), String> {
         "DELETE FROM config_backup WHERE app_type = ?1",
         [app_type],
     )
-    .map_err(|e| format!("delete_backup: {}", e))?;
+    .map_err(|e| format!("delete_backup: {e}"))?;
     Ok(())
 }
 
 /// Delete ALL backups — only called after every restore has succeeded.
+#[allow(dead_code)]
 pub fn delete_all_backups(db: &Database) -> Result<(), String> {
     let conn = lock_conn!(db.conn);
     conn.execute("DELETE FROM config_backup", [])
-        .map_err(|e| format!("delete_all_backups: {}", e))?;
+        .map_err(|e| format!("delete_all_backups: {e}"))?;
     Ok(())
 }
 
@@ -57,10 +58,10 @@ pub fn list_app_types(db: &Database) -> Result<Vec<String>, String> {
     let conn = lock_conn!(db.conn);
     let mut stmt = conn
         .prepare("SELECT app_type FROM config_backup")
-        .map_err(|e| format!("prepare list_app_types: {}", e))?;
+        .map_err(|e| format!("prepare list_app_types: {e}"))?;
     let rows = stmt
         .query_map([], |row| row.get(0))
-        .map_err(|e| format!("query list_app_types: {}", e))?;
+        .map_err(|e| format!("query list_app_types: {e}"))?;
     rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("collect list_app_types: {}", e))
+        .map_err(|e| format!("collect list_app_types: {e}"))
 }

@@ -5,6 +5,10 @@ use std::path::PathBuf;
 
 use crate::utils;
 
+static GEMINI_BASE_URL_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r#"(?m)^GOOGLE_GEMINI_BASE_URL=(.*)$"#).unwrap()
+});
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum CliApp {
     Claude,
@@ -75,6 +79,7 @@ impl CliApp {
         }
     }
 
+    #[allow(dead_code)]
     pub fn default_url(&self) -> &'static str {
         match self {
             CliApp::Claude => "https://api.anthropic.com",
@@ -197,14 +202,10 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
             }
             CliApp::Gemini => {
                 if file.name == ".env" {
-                    if let Ok(re) = regex::Regex::new(r#"(?m)^GOOGLE_GEMINI_BASE_URL=(.*)$"#) {
-                        if let Some(caps) = re.captures(&content) {
-                            let url = caps[1].trim();
-                            current_base_url = Some(url.to_string());
-                            if url.trim_end_matches('/') != proxy_url.trim_end_matches('/') {
-                                all_synced = false;
-                            }
-                        } else {
+                    if let Some(caps) = GEMINI_BASE_URL_RE.captures(&content) {
+                        let url = caps[1].trim();
+                        current_base_url = Some(url.to_string());
+                        if url.trim_end_matches('/') != proxy_url.trim_end_matches('/') {
                             all_synced = false;
                         }
                     } else {
@@ -241,7 +242,7 @@ pub fn sync_config(
 
         if let Some(parent) = file.path.parent() {
             fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
+                .map_err(|e| format!("Failed to create directory {parent:?}: {e}"))?;
         }
 
         // Auto-backup before first sync
@@ -380,29 +381,29 @@ pub fn sync_config(
                     let mut found_key = false;
                     for line in lines.iter_mut() {
                         if line.starts_with("GOOGLE_GEMINI_BASE_URL=") {
-                            *line = format!("GOOGLE_GEMINI_BASE_URL={}", proxy_url);
+                            *line = format!("GOOGLE_GEMINI_BASE_URL={proxy_url}");
                             found_url = true;
                         } else if line.trim().starts_with("GEMINI_API_KEY=") {
-                            *line = format!("GEMINI_API_KEY={}", api_key);
+                            *line = format!("GEMINI_API_KEY={api_key}");
                             found_key = true;
                         }
                     }
                     if !found_url {
-                        lines.push(format!("GOOGLE_GEMINI_BASE_URL={}", proxy_url));
+                        lines.push(format!("GOOGLE_GEMINI_BASE_URL={proxy_url}"));
                     }
                     if !found_key {
-                        lines.push(format!("GEMINI_API_KEY={}", api_key));
+                        lines.push(format!("GEMINI_API_KEY={api_key}"));
                     }
                     if let Some(m) = model {
                         let mut found_model = false;
                         for line in lines.iter_mut() {
                             if line.starts_with("GOOGLE_GEMINI_MODEL=") {
-                                *line = format!("GOOGLE_GEMINI_MODEL={}", m);
+                                *line = format!("GOOGLE_GEMINI_MODEL={m}");
                                 found_model = true;
                             }
                         }
                         if !found_model {
-                            lines.push(format!("GOOGLE_GEMINI_MODEL={}", m));
+                            lines.push(format!("GOOGLE_GEMINI_MODEL={m}"));
                         }
                     }
                     content = lines.join("\n");
@@ -590,11 +591,11 @@ pub fn write_config_content(app: &CliApp, file_name: &str, content: &str) -> Res
     // Validate JSON if it's a JSON file
     if file_name.ends_with(".json") {
         serde_json::from_str::<Value>(content)
-            .map_err(|e| format!("Invalid JSON: {}", e))?;
+            .map_err(|e| format!("Invalid JSON: {e}"))?;
     }
 
     utils::atomic_write(&file.path, content)
-        .map_err(|e| format!("Failed to write {}: {}", file_name, e))
+        .map_err(|e| format!("Failed to write {file_name}: {e}"))
 }
 
 #[cfg(test)]
@@ -752,7 +753,7 @@ some_key = "keep"
 
         let mp_item = doc.get("model_providers").unwrap();
         let mp_type = mp_item.type_name();
-        println!("model_providers type_name = {}", mp_type);
+        println!("model_providers type_name = {mp_type}");
 
         // as_table() path
         let via_table = mp_item.as_table()
@@ -764,12 +765,11 @@ some_key = "keep"
             .and_then(|t| t.get("base_url"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        println!("via as_table() = {:?}", via_table);
+        println!("via as_table() = {via_table:?}");
 
         assert!(
             via_table.is_some(),
-            "base_url must be reachable via as_table() — mp type was: {}",
-            mp_type
+            "base_url must be reachable via as_table() — mp type was: {mp_type}"
         );
         assert_eq!(
             via_table.unwrap().trim_end_matches('/'),
@@ -891,18 +891,18 @@ base_url = "http://localhost:8045/v1"
         let mut found_key = false;
         for line in lines.iter_mut() {
             if line.starts_with("GOOGLE_GEMINI_BASE_URL=") {
-                *line = format!("GOOGLE_GEMINI_BASE_URL={}", proxy_url);
+                *line = format!("GOOGLE_GEMINI_BASE_URL={proxy_url}");
                 found_url = true;
             } else if line.trim().starts_with("GEMINI_API_KEY=") {
-                *line = format!("GEMINI_API_KEY={}", api_key);
+                *line = format!("GEMINI_API_KEY={api_key}");
                 found_key = true;
             }
         }
         if !found_url {
-            lines.push(format!("GOOGLE_GEMINI_BASE_URL={}", proxy_url));
+            lines.push(format!("GOOGLE_GEMINI_BASE_URL={proxy_url}"));
         }
         if !found_key {
-            lines.push(format!("GEMINI_API_KEY={}", api_key));
+            lines.push(format!("GEMINI_API_KEY={api_key}"));
         }
         let mut content = lines.join("\n");
         if !content.ends_with('\n') {
@@ -910,8 +910,8 @@ base_url = "http://localhost:8045/v1"
         }
 
         assert!(content.contains("EXISTING_KEY=keep-me"));
-        assert!(content.contains(&format!("GOOGLE_GEMINI_BASE_URL={}", proxy_url)));
-        assert!(content.contains(&format!("GEMINI_API_KEY={}", api_key)));
+        assert!(content.contains(&format!("GOOGLE_GEMINI_BASE_URL={proxy_url}")));
+        assert!(content.contains(&format!("GEMINI_API_KEY={api_key}")));
         assert!(content.ends_with('\n'));
         // 旧URL应被替换而不是追加
         assert!(!content.contains("old-url"));
@@ -971,7 +971,7 @@ base_url = "http://localhost:8045/v1"
 
         // 第一次备份
         utils::create_rotated_backup(&file_path, BACKUP_SUFFIX).unwrap();
-        let backup_path = file_path.with_file_name(format!("test.json{}", BACKUP_SUFFIX));
+        let backup_path = file_path.with_file_name(format!("test.json{BACKUP_SUFFIX}"));
         assert!(backup_path.exists());
         assert_eq!(
             fs::read_to_string(&backup_path).unwrap(),
@@ -1184,7 +1184,7 @@ base_url = "http://localhost:8045/v1"
     /// 测试Codex restore清理provider字段
     #[test]
     fn test_codex_restore_removes_custom_provider() {
-        use toml_edit::{value, DocumentMut};
+        use toml_edit::DocumentMut;
 
         let toml_str = r#"
 model_provider = "custom"

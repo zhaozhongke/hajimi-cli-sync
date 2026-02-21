@@ -92,13 +92,12 @@ pub fn check_system() -> SystemRequirements {
         issues.push(SystemIssue {
             severity: IssueSeverity::Error,
             code: "LOW_DISK_SPACE".to_string(),
-            message: format!("Low disk space: only {} MB available", disk_space_mb),
+            message: format!("Low disk space: only {disk_space_mb} MB available"),
             fix_hint: "Please free up disk space before proceeding.".to_string(),
         });
     } else if disk_space_mb < 500 {
         warnings.push(format!(
-            "Low disk space: {} MB available. Consider freeing up space.",
-            disk_space_mb
+            "Low disk space: {disk_space_mb} MB available. Consider freeing up space."
         ));
     }
 
@@ -167,8 +166,7 @@ pub fn validate_system_requirements() -> Result<()> {
             .join("\n\n");
 
         return Err(SyncError::Other(format!(
-            "System requirements not met:\n\n{}",
-            error_msg
+            "System requirements not met:\n\n{error_msg}"
         )));
     }
 
@@ -233,14 +231,14 @@ mod tests {
         // 只记录结果，不断言
         match result {
             Ok(_) => println!("System requirements met"),
-            Err(e) => println!("System requirements not met: {}", e),
+            Err(e) => println!("System requirements not met: {e}"),
         }
     }
 
     #[test]
     fn test_get_disk_space() {
         let space = get_available_disk_space();
-        println!("Available disk space: {} MB", space);
+        println!("Available disk space: {space} MB");
         // 不做断言，因为不同环境不同
     }
 }

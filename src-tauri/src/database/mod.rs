@@ -24,10 +24,10 @@ impl Database {
     pub fn init(path: &Path) -> Result<Self, String> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create DB directory: {}", e))?;
+                .map_err(|e| format!("Failed to create DB directory: {e}"))?;
         }
         let conn = Connection::open(path)
-            .map_err(|e| format!("Failed to open SQLite DB: {}", e))?;
+            .map_err(|e| format!("Failed to open SQLite DB: {e}"))?;
         Self::configure(&conn)?;
         Self::apply_schema(&conn)?;
         Ok(Self {
@@ -37,7 +37,7 @@ impl Database {
 
     pub fn memory() -> Result<Self, String> {
         let conn = Connection::open_in_memory()
-            .map_err(|e| format!("Failed to open in-memory DB: {}", e))?;
+            .map_err(|e| format!("Failed to open in-memory DB: {e}"))?;
         Self::configure(&conn)?;
         Self::apply_schema(&conn)?;
         Ok(Self {
@@ -53,7 +53,7 @@ impl Database {
              PRAGMA busy_timeout = 5000;
              PRAGMA foreign_keys = ON;",
         )
-        .map_err(|e| format!("DB configure failed: {}", e))
+        .map_err(|e| format!("DB configure failed: {e}"))
     }
 
     fn apply_schema(conn: &Connection) -> Result<(), String> {
@@ -67,7 +67,7 @@ impl Database {
         let conn = lock_conn!(self.conn);
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM config_backup", [], |row| row.get(0))
-            .map_err(|e| format!("has_any_backup: {}", e))?;
+            .map_err(|e| format!("has_any_backup: {e}"))?;
         Ok(count > 0)
     }
 }

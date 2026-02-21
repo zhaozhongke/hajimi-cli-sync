@@ -67,7 +67,7 @@ fn get_proxy_url(app: &str, base_url: &str) -> String {
             if url.ends_with("/v1") {
                 url.to_string()
             } else {
-                format!("{}/v1", url)
+                format!("{url}/v1")
             }
         }
         _ => url.to_string(),
@@ -233,7 +233,7 @@ async fn sync_cli(
 
     match app.as_str() {
         "claude" | "codex" | "gemini" => {
-            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {}", app))?;
+            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {app}"))?;
             cli_sync::sync_config(&cli_app, &proxy_url, &api_key, model.as_deref())
         }
         "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
@@ -245,7 +245,7 @@ async fn sync_cli(
             if let Some(client) = ExtraClient::from_str(other) {
                 extra_clients::sync_extra_config(&client, &proxy_url, &api_key, model.as_deref())
             } else {
-                Err(format!("Unknown app: {}", app))
+                Err(format!("Unknown app: {app}"))
             }
         }
     }
@@ -301,7 +301,7 @@ async fn sync_all(
                     &api_key,
                     effective_model.map(|s| s.as_str()),
                 ),
-                None => Err(format!("Invalid app: {}", app_name)),
+                None => Err(format!("Invalid app: {app_name}")),
             },
             "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
             "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, effective_model.map(|s| s.as_str())).await,
@@ -361,7 +361,7 @@ async fn sync_all(
 async fn restore_cli(app: String) -> Result<(), String> {
     match app.as_str() {
         "claude" | "codex" | "gemini" => {
-            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {}", app))?;
+            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {app}"))?;
             cli_sync::restore_config(&cli_app)
         }
         "opencode" => opencode_sync::restore_opencode_config(),
@@ -371,7 +371,7 @@ async fn restore_cli(app: String) -> Result<(), String> {
             if let Some(client) = ExtraClient::from_str(other) {
                 extra_clients::restore_extra_config(&client)
             } else {
-                Err(format!("Unknown app: {}", app))
+                Err(format!("Unknown app: {app}"))
             }
         }
     }
@@ -389,20 +389,20 @@ async fn fetch_models(url: String, api_key: String) -> Result<Vec<String>, Strin
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     let response = client
         .get(&models_url)
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await
         .map_err(|e| {
             if e.is_timeout() {
                 "Request timed out (10s)".to_string()
             } else if e.is_connect() {
-                format!("Connection failed: {}", e)
+                format!("Connection failed: {e}")
             } else {
-                format!("Request failed: {}", e)
+                format!("Request failed: {e}")
             }
         })?;
 
@@ -411,13 +411,13 @@ async fn fetch_models(url: String, api_key: String) -> Result<Vec<String>, Strin
         let body = response.text().await.unwrap_or_default();
         // Truncate body to avoid leaking large error pages or sensitive data.
         let summary = body.chars().take(200).collect::<String>();
-        return Err(format!("API returned {}: {}", status, summary));
+        return Err(format!("API returned {status}: {summary}"));
     }
 
     let body: Value = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        .map_err(|e| format!("Failed to parse response: {e}"))?;
 
     let mut models: Vec<String> = Vec::new();
 
@@ -444,20 +444,20 @@ async fn test_connection(url: String, api_key: String) -> Result<String, String>
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
     let response = client
         .get(&models_url)
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await
         .map_err(|e| {
             if e.is_timeout() {
                 "Connection timed out (10s). Check the URL.".to_string()
             } else if e.is_connect() {
-                format!("Cannot connect to server: {}", e)
+                format!("Cannot connect to server: {e}")
             } else {
-                format!("Request failed: {}", e)
+                format!("Request failed: {e}")
             }
         })?;
 
@@ -470,7 +470,7 @@ async fn test_connection(url: String, api_key: String) -> Result<String, String>
         let body = response.text().await.unwrap_or_default();
         // SECURITY: Truncate body to prevent leaking large error pages
         let summary: String = body.chars().take(200).collect();
-        Err(format!("Server returned {}: {}", status, summary))
+        Err(format!("Server returned {status}: {summary}"))
     }
 }
 
@@ -478,7 +478,7 @@ async fn test_connection(url: String, api_key: String) -> Result<String, String>
 async fn get_config_content(app: String, file_name: Option<String>) -> Result<String, String> {
     match app.as_str() {
         "claude" | "codex" | "gemini" => {
-            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {}", app))?;
+            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {app}"))?;
             cli_sync::read_config_content(&cli_app, file_name.as_deref())
         }
         "opencode" => opencode_sync::read_opencode_config_content(),
@@ -488,7 +488,7 @@ async fn get_config_content(app: String, file_name: Option<String>) -> Result<St
             if let Some(client) = ExtraClient::from_str(other) {
                 extra_clients::read_extra_config_content(&client)
             } else {
-                Err(format!("Unknown app: {}", app))
+                Err(format!("Unknown app: {app}"))
             }
         }
     }
@@ -498,7 +498,7 @@ async fn get_config_content(app: String, file_name: Option<String>) -> Result<St
 async fn write_config_file(app: String, file_name: String, content: String) -> Result<(), String> {
     match app.as_str() {
         "claude" | "codex" | "gemini" => {
-            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {}", app))?;
+            let cli_app = get_cli_app(&app).ok_or_else(|| format!("Invalid app: {app}"))?;
             cli_sync::write_config_content(&cli_app, &file_name, &content)
         }
         "opencode" => opencode_sync::write_opencode_config_content(&content),
@@ -508,7 +508,7 @@ async fn write_config_file(app: String, file_name: String, content: String) -> R
             if let Some(client) = ExtraClient::from_str(other) {
                 extra_clients::write_extra_config_content(&client, &file_name, &content)
             } else {
-                Err(format!("Unknown app: {}", other))
+                Err(format!("Unknown app: {other}"))
             }
         }
     }
@@ -536,14 +536,14 @@ async fn launch_app(name: String) -> Result<(), String> {
     ];
     let trimmed = name.trim();
     if !ALLOWED_APPS.iter().any(|a| a.eq_ignore_ascii_case(trimmed)) {
-        return Err(format!("Unknown application: {}", trimmed));
+        return Err(format!("Unknown application: {trimmed}"));
     }
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
             .args(["-a", &name])
             .spawn()
-            .map_err(|e| format!("Failed to launch {}: {}", name, e))?;
+            .map_err(|e| format!("Failed to launch {name}: {e}"))?;
     }
     #[cfg(target_os = "windows")]
     {
@@ -586,9 +586,9 @@ fn get_config_folder_path(app: &str) -> Result<std::path::PathBuf, String> {
         other => {
             if let Some(client) = ExtraClient::from_str(other) {
                 extra_clients::get_config_folder(&client)
-                    .ok_or_else(|| format!("Cannot determine config folder for {}", other))
+                    .ok_or_else(|| format!("Cannot determine config folder for {other}"))
             } else {
-                Err(format!("Unknown app: {}", other))
+                Err(format!("Unknown app: {other}"))
             }
         }
     }
@@ -600,7 +600,7 @@ fn open_path_in_system(path: &str) -> Result<(), String> {
         std::process::Command::new("open")
             .arg(path)
             .spawn()
-            .map_err(|e| format!("Failed to open: {}", e))?;
+            .map_err(|e| format!("Failed to open: {e}"))?;
     }
     #[cfg(target_os = "windows")]
     {
@@ -670,7 +670,7 @@ async fn switch_provider(
     let target = providers::get_all(&state.db)?
         .into_iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("Provider not found: {}", id))?;
+        .ok_or_else(|| format!("Provider not found: {id}"))?;
 
     let per_cli: std::collections::HashMap<String, String> =
         serde_json::from_str(&target.per_cli_models).unwrap_or_default();
@@ -723,7 +723,7 @@ async fn switch_provider(
                 Some(cli_app) => {
                     cli_sync::sync_config(&cli_app, &proxy_url, &target.api_key, model_ref)
                 }
-                None => Err(format!("Invalid app: {}", app_name)),
+                None => Err(format!("Invalid app: {app_name}")),
             },
             "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &target.api_key).await,
             "openclaw" => {
@@ -756,7 +756,7 @@ async fn switch_provider(
             continue;
         }
         let app_name = client.as_str();
-        if !extra_clients::check_extra_installed(&client).0 {
+        if !extra_clients::check_extra_installed(client).0 {
             continue;
         }
 
@@ -764,14 +764,14 @@ async fn switch_provider(
         let model = effective_model_for(app_name);
         let model_ref = model.as_deref();
 
-        if let Some(content) = extra_clients::read_extra_config_content(&client).ok() {
+        if let Ok(content) = extra_clients::read_extra_config_content(client) {
             if let Err(e) = backup::save_backup(&state.db, app_name, &content) {
                 tracing::warn!("[switch] backup write failed for {}: {}", app_name, e);
             }
         }
 
         let result =
-            extra_clients::sync_extra_config(&client, &proxy_url, &target.api_key, model_ref);
+            extra_clients::sync_extra_config(client, &proxy_url, &target.api_key, model_ref);
 
         match result {
             Ok(()) => {
@@ -866,7 +866,7 @@ fn restore_from_snapshot(app_type: &str, content: &str) -> Result<(), String> {
     match app_type {
         "claude" | "codex" | "gemini" => {
             let cli_app = get_cli_app(app_type)
-                .ok_or_else(|| format!("Unknown cli app: {}", app_type))?;
+                .ok_or_else(|| format!("Unknown cli app: {app_type}"))?;
             // Use the first config file for this app.
             let files = cli_app.config_files();
             let file_name = files
@@ -885,7 +885,7 @@ fn restore_from_snapshot(app_type: &str, content: &str) -> Result<(), String> {
                 let file_name = files.into_iter().next().unwrap_or_default();
                 extra_clients::write_extra_config_content(&client, &file_name, content)
             } else {
-                Err(format!("Unknown app type in crash recovery: {}", other))
+                Err(format!("Unknown app type in crash recovery: {other}"))
             }
         }
     }

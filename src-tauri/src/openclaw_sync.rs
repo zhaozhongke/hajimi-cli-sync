@@ -24,7 +24,7 @@ pub fn check_openclaw_installed() -> (bool, Option<String>) {
         }
         None => {
             // Also check if config dir exists (installed but not in PATH)
-            let has_config = get_config_dir().map_or(false, |d| d.exists());
+            let has_config = get_config_dir().is_some_and(|d| d.exists());
             if has_config {
                 (true, Some("detected".to_string()))
             } else {
@@ -40,7 +40,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
         None => return (false, false, None),
     };
 
-    let backup_path = config_path.with_file_name(format!("{}{}", CONFIG_FILE, BACKUP_SUFFIX));
+    let backup_path = config_path.with_file_name(format!("{CONFIG_FILE}{BACKUP_SUFFIX}"));
     let has_backup = backup_path.exists();
 
     if !config_path.exists() {
@@ -65,7 +65,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| utils::urls_match(u, proxy_url));
+        .is_some_and(|u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -77,7 +77,7 @@ fn normalize_base_url(input: &str) -> String {
     if trimmed.ends_with("/v1") {
         trimmed.to_string()
     } else {
-        format!("{}/v1", trimmed)
+        format!("{trimmed}/v1")
     }
 }
 
@@ -97,7 +97,7 @@ async fn fetch_models_for_openclaw(
 
     let resp = match client
         .get(&models_url)
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await
     {
@@ -154,7 +154,7 @@ pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
+            .map_err(|e| format!("Failed to create directory {parent:?}: {e}"))?;
     }
 
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
@@ -178,10 +178,10 @@ pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<
     let fetched_models = fetch_models_for_openclaw(&normalized_url, api_key).await;
 
     // Ensure models.providers path exists
-    if !config.get("models").map_or(false, |v| v.is_object()) {
+    if !config.get("models").is_some_and(|v| v.is_object()) {
         config["models"] = serde_json::json!({});
     }
-    if !config["models"].get("providers").map_or(false, |v| v.is_object()) {
+    if !config["models"].get("providers").is_some_and(|v| v.is_object()) {
         config["models"]["providers"] = serde_json::json!({});
     }
 
@@ -212,18 +212,18 @@ pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<
     // Set default agent model to use hajimi provider
     if let Some(model_id) = model {
         // Ensure agents.defaults.model path exists
-        if !config.get("agents").map_or(false, |v| v.is_object()) {
+        if !config.get("agents").is_some_and(|v| v.is_object()) {
             config["agents"] = serde_json::json!({});
         }
-        if !config["agents"].get("defaults").map_or(false, |v| v.is_object()) {
+        if !config["agents"].get("defaults").is_some_and(|v| v.is_object()) {
             config["agents"]["defaults"] = serde_json::json!({});
         }
-        if !config["agents"]["defaults"].get("model").map_or(false, |v| v.is_object()) {
+        if !config["agents"]["defaults"].get("model").is_some_and(|v| v.is_object()) {
             config["agents"]["defaults"]["model"] = serde_json::json!({});
         }
 
         // Set primary model to hajimi/model_id format
-        let primary_model = format!("{}/{}", PROVIDER_ID, model_id);
+        let primary_model = format!("{PROVIDER_ID}/{model_id}");
         config["agents"]["defaults"]["model"]["primary"] = Value::String(primary_model);
     }
 
@@ -236,11 +236,11 @@ pub fn restore_openclaw_config() -> Result<(), String> {
         get_config_path().ok_or_else(|| "Failed to get OpenClaw config directory".to_string())?;
 
     let backup_path =
-        config_path.with_file_name(format!("{}{}", CONFIG_FILE, BACKUP_SUFFIX));
+        config_path.with_file_name(format!("{CONFIG_FILE}{BACKUP_SUFFIX}"));
     if backup_path.exists() {
         // Atomic rename replaces the target file directly — no intermediate delete needed.
         fs::rename(&backup_path, &config_path)
-            .map_err(|e| format!("Failed to restore config: {}", e))?;
+            .map_err(|e| format!("Failed to restore config: {e}"))?;
         Ok(())
     } else {
         Err("No backup file found".to_string())
@@ -252,16 +252,16 @@ pub fn read_openclaw_config_content() -> Result<String, String> {
         get_config_path().ok_or_else(|| "Failed to get OpenClaw config directory".to_string())?;
 
     if !config_path.exists() {
-        return Err(format!("Config file does not exist: {:?}", config_path));
+        return Err(format!("Config file does not exist: {config_path:?}"));
     }
 
-    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))
+    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {e}"))
 }
 
 pub fn write_openclaw_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
     serde_json::from_str::<serde_json::Value>(content)
-        .map_err(|e| format!("Invalid JSON: {}", e))?;
+        .map_err(|e| format!("Invalid JSON: {e}"))?;
     utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }
 

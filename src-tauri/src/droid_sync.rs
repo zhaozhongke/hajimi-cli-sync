@@ -63,7 +63,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>, usize) {
         None => return (false, false, None, 0),
     };
 
-    let backup_path = config_path.with_file_name(format!("{}{}", DROID_CONFIG_FILE, BACKUP_SUFFIX));
+    let backup_path = config_path.with_file_name(format!("{DROID_CONFIG_FILE}{BACKUP_SUFFIX}"));
     let has_backup = backup_path.exists();
 
     if !config_path.exists() {
@@ -81,7 +81,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>, usize) {
     let is_synced = synced_count > 0
         && first_url
             .as_deref()
-            .map_or(false, |u| utils::urls_match(u, proxy_url));
+            .is_some_and(|u| utils::urls_match(u, proxy_url));
     (is_synced, has_backup, first_url, synced_count)
 }
 
@@ -110,14 +110,14 @@ pub fn sync_droid_config(
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
+            .map_err(|e| format!("Failed to create directory {parent:?}: {e}"))?;
     }
 
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX)?;
 
     let mut config: Value = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
-            .map_err(|e| format!("Failed to read config: {}", e))?;
+            .map_err(|e| format!("Failed to read config: {e}"))?;
         serde_json::from_str(&content).unwrap_or_else(|e| {
             tracing::warn!("[droid_sync] Config corrupted, starting fresh: {}", e);
             serde_json::json!({})
@@ -181,10 +181,10 @@ pub fn restore_droid_config() -> Result<(), String> {
     let config_path =
         get_config_path().ok_or_else(|| "Failed to get Droid config directory".to_string())?;
 
-    let backup_path = config_path.with_file_name(format!("{}{}", DROID_CONFIG_FILE, BACKUP_SUFFIX));
+    let backup_path = config_path.with_file_name(format!("{DROID_CONFIG_FILE}{BACKUP_SUFFIX}"));
     if backup_path.exists() {
         fs::rename(&backup_path, &config_path)
-            .map_err(|e| format!("Failed to restore config: {}", e))?;
+            .map_err(|e| format!("Failed to restore config: {e}"))?;
         Ok(())
     } else {
         Err("No backup file found".to_string())
@@ -199,7 +199,14 @@ pub fn read_droid_config_content() -> Result<String, String> {
         return Ok("{}".to_string());
     }
 
-    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))
+    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {e}"))
+}
+
+pub fn write_droid_config_content(content: &str) -> Result<(), String> {
+    let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
+    serde_json::from_str::<serde_json::Value>(content)
+        .map_err(|e| format!("Invalid JSON: {e}"))?;
+    utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -236,11 +243,4 @@ mod tests {
         assert_eq!(models[0]["baseUrl"], "https://example.com");
         assert_eq!(models[0]["apiKey"], "sk-test");
     }
-}
-
-pub fn write_droid_config_content(content: &str) -> Result<(), String> {
-    let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
-    serde_json::from_str::<serde_json::Value>(content)
-        .map_err(|e| format!("Invalid JSON: {}", e))?;
-    utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }

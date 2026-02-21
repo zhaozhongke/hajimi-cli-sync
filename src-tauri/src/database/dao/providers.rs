@@ -44,12 +44,12 @@ pub fn get_all(db: &Database) -> Result<Vec<ProviderRecord>, String> {
              FROM providers
              ORDER BY COALESCE(sort_index, 999999), created_at ASC",
         )
-        .map_err(|e| format!("prepare get_all: {}", e))?;
+        .map_err(|e| format!("prepare get_all: {e}"))?;
     let rows = stmt
         .query_map([], map_row)
-        .map_err(|e| format!("query get_all: {}", e))?;
+        .map_err(|e| format!("query get_all: {e}"))?;
     rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("collect get_all: {}", e))
+        .map_err(|e| format!("collect get_all: {e}"))
 }
 
 pub fn get_current(db: &Database) -> Result<Option<ProviderRecord>, String> {
@@ -60,13 +60,13 @@ pub fn get_current(db: &Database) -> Result<Option<ProviderRecord>, String> {
                     sort_index, notes, created_at
              FROM providers WHERE is_current = 1 LIMIT 1",
         )
-        .map_err(|e| format!("prepare get_current: {}", e))?;
+        .map_err(|e| format!("prepare get_current: {e}"))?;
     let mut rows = stmt
         .query_map([], map_row)
-        .map_err(|e| format!("query get_current: {}", e))?;
+        .map_err(|e| format!("query get_current: {e}"))?;
     match rows.next() {
         Some(Ok(r)) => Ok(Some(r)),
-        Some(Err(e)) => Err(format!("row get_current: {}", e)),
+        Some(Err(e)) => Err(format!("row get_current: {e}")),
         None => Ok(None),
     }
 }
@@ -86,7 +86,7 @@ pub fn save(db: &Database, provider: &ProviderRecord) -> Result<(), String> {
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| format!("save read existing: {}", e))?;
+        .map_err(|e| format!("save read existing: {e}"))?;
 
     let is_current = existing_is_current.unwrap_or(0);
 
@@ -116,7 +116,7 @@ pub fn save(db: &Database, provider: &ProviderRecord) -> Result<(), String> {
             provider.created_at,
         ],
     )
-    .map_err(|e| format!("save upsert: {}", e))?;
+    .map_err(|e| format!("save upsert: {e}"))?;
     Ok(())
 }
 
@@ -132,22 +132,22 @@ pub fn set_current(db: &Database, id: &str) -> Result<(), String> {
             [id],
             |row| row.get(0),
         )
-        .map_err(|e| format!("set_current pre-check: {}", e))?;
+        .map_err(|e| format!("set_current pre-check: {e}"))?;
     if exists == 0 {
-        return Err(format!("Provider not found: {}", id));
+        return Err(format!("Provider not found: {id}"));
     }
 
     let tx = conn
         .unchecked_transaction()
-        .map_err(|e| format!("set_current begin: {}", e))?;
+        .map_err(|e| format!("set_current begin: {e}"))?;
     tx.execute("UPDATE providers SET is_current = 0", [])
-        .map_err(|e| format!("set_current clear: {}", e))?;
+        .map_err(|e| format!("set_current clear: {e}"))?;
     tx.execute(
         "UPDATE providers SET is_current = 1 WHERE id = ?1",
         [id],
     )
-    .map_err(|e| format!("set_current set: {}", e))?;
-    tx.commit().map_err(|e| format!("set_current commit: {}", e))
+    .map_err(|e| format!("set_current set: {e}"))?;
+    tx.commit().map_err(|e| format!("set_current commit: {e}"))
 }
 
 /// Delete a provider. Refuses if it is currently active.
@@ -163,7 +163,7 @@ pub fn delete(db: &Database, id: &str) -> Result<(), String> {
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| format!("delete pre-check: {}", e))?
+        .map_err(|e| format!("delete pre-check: {e}"))?
         .unwrap_or(0);
 
     if is_current != 0 {
@@ -175,10 +175,10 @@ pub fn delete(db: &Database, id: &str) -> Result<(), String> {
 
     let tx = conn
         .unchecked_transaction()
-        .map_err(|e| format!("delete begin: {}", e))?;
+        .map_err(|e| format!("delete begin: {e}"))?;
     tx.execute("DELETE FROM providers WHERE id = ?1", [id])
-        .map_err(|e| format!("delete execute: {}", e))?;
-    tx.commit().map_err(|e| format!("delete commit: {}", e))
+        .map_err(|e| format!("delete execute: {e}"))?;
+    tx.commit().map_err(|e| format!("delete commit: {e}"))
 }
 
 /// Batch-update sort_index in a single transaction.
@@ -186,19 +186,20 @@ pub fn reorder(db: &Database, ids: &[String]) -> Result<(), String> {
     let conn = lock_conn!(db.conn);
     let tx = conn
         .unchecked_transaction()
-        .map_err(|e| format!("reorder begin: {}", e))?;
+        .map_err(|e| format!("reorder begin: {e}"))?;
     for (i, id) in ids.iter().enumerate() {
         tx.execute(
             "UPDATE providers SET sort_index = ?1 WHERE id = ?2",
             rusqlite::params![i as i64, id],
         )
-        .map_err(|e| format!("reorder update {}: {}", id, e))?;
+        .map_err(|e| format!("reorder update {id}: {e}"))?;
     }
-    tx.commit().map_err(|e| format!("reorder commit: {}", e))
+    tx.commit().map_err(|e| format!("reorder commit: {e}"))
 }
 
+#[allow(dead_code)]
 pub fn count(db: &Database) -> Result<i64, String> {
     let conn = lock_conn!(db.conn);
     conn.query_row("SELECT COUNT(*) FROM providers", [], |row| row.get(0))
-        .map_err(|e| format!("count: {}", e))
+        .map_err(|e| format!("count: {e}"))
 }

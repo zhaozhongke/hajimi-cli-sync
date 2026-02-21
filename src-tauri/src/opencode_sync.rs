@@ -15,7 +15,7 @@ fn normalize_base_url(input: &str) -> String {
     if trimmed.ends_with("/v1") {
         trimmed.to_string()
     } else {
-        format!("{}/v1", trimmed)
+        format!("{trimmed}/v1")
     }
 }
 
@@ -62,7 +62,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
     };
 
     let backup_path =
-        config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
+        config_path.with_file_name(format!("{OPENCODE_CONFIG_FILE}{BACKUP_SUFFIX}"));
     let has_backup = backup_path.exists();
 
     if !config_path.exists() {
@@ -120,7 +120,7 @@ async fn fetch_models_from_proxy(base_url: &str, api_key: &str) -> serde_json::M
 
     let resp = match client
         .get(&models_url)
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await
     {
@@ -169,7 +169,7 @@ pub async fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), 
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
+            .map_err(|e| format!("Failed to create directory {parent:?}: {e}"))?;
     }
 
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
@@ -197,12 +197,12 @@ pub async fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), 
     let fetched_models = fetch_models_from_proxy(&normalized_url, api_key).await;
 
     // Ensure provider object exists
-    if !config.get("provider").map_or(false, |v| v.is_object()) {
+    if !config.get("provider").is_some_and(|v| v.is_object()) {
         config["provider"] = serde_json::json!({});
     }
 
     if let Some(provider) = config.get_mut("provider").and_then(|p| p.as_object_mut()) {
-        if !provider.get(PROVIDER_ID).map_or(false, |v| v.is_object()) {
+        if !provider.get(PROVIDER_ID).is_some_and(|v| v.is_object()) {
             provider.insert(PROVIDER_ID.to_string(), serde_json::json!({}));
         }
         if let Some(ag_provider) = provider.get_mut(PROVIDER_ID) {
@@ -214,7 +214,7 @@ pub async fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), 
                 obj.insert("name".to_string(), Value::String("Hajimi".to_string()));
             }
 
-            if !ag_provider.get("options").map_or(false, |v| v.is_object()) {
+            if !ag_provider.get("options").is_some_and(|v| v.is_object()) {
                 ag_provider["options"] = serde_json::json!({});
             }
             if let Some(options) = ag_provider
@@ -243,11 +243,11 @@ pub fn restore_opencode_config() -> Result<(), String> {
         get_config_path().ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
 
     let backup_path =
-        config_path.with_file_name(format!("{}{}", OPENCODE_CONFIG_FILE, BACKUP_SUFFIX));
+        config_path.with_file_name(format!("{OPENCODE_CONFIG_FILE}{BACKUP_SUFFIX}"));
     if backup_path.exists() {
         // Atomic rename replaces the target file directly — no intermediate delete needed.
         fs::rename(&backup_path, &config_path)
-            .map_err(|e| format!("Failed to restore config: {}", e))?;
+            .map_err(|e| format!("Failed to restore config: {e}"))?;
         Ok(())
     } else {
         Err("No backup file found".to_string())
@@ -259,17 +259,17 @@ pub fn read_opencode_config_content() -> Result<String, String> {
         get_config_path().ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
 
     if !config_path.exists() {
-        return Err(format!("Config file does not exist: {:?}", config_path));
+        return Err(format!("Config file does not exist: {config_path:?}"));
     }
 
-    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))
+    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {e}"))
 }
 
 pub fn write_opencode_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
     serde_json::from_str::<serde_json::Value>(content)
-        .map_err(|e| format!("Invalid JSON: {}", e))?;
-    fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {}", e))
+        .map_err(|e| format!("Invalid JSON: {e}"))?;
+    fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {e}"))
 }
 
 #[cfg(test)]

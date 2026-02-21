@@ -253,13 +253,13 @@ fn is_vscode_extension_installed(ext_prefix: &str) -> bool {
 /// Check if a macOS app bundle is installed.
 #[cfg(target_os = "macos")]
 fn is_app_installed(app_name: &str) -> bool {
-    let app_path = PathBuf::from(format!("/Applications/{}.app", app_name));
+    let app_path = PathBuf::from(format!("/Applications/{app_name}.app"));
     if app_path.exists() {
         return true;
     }
     // Also check ~/Applications
     if let Some(home) = home_dir() {
-        let user_app = home.join(format!("Applications/{}.app", app_name));
+        let user_app = home.join(format!("Applications/{app_name}.app"));
         if user_app.exists() {
             return true;
         }
@@ -340,7 +340,7 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
         ExtraClient::Chatbox => {
             let installed = is_app_installed("Chatbox")
                 || chatbox_config_path()
-                    .map_or(false, |p| p.parent().map_or(false, |d| d.exists()));
+                    .is_some_and(|p| p.parent().is_some_and(|d| d.exists()));
             (
                 installed,
                 if installed {
@@ -352,7 +352,7 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
         }
         ExtraClient::CherryStudio => {
             let installed = is_app_installed("Cherry Studio")
-                || cherry_config_path().map_or(false, |p| p.exists());
+                || cherry_config_path().is_some_and(|p| p.exists());
             (
                 installed,
                 if installed {
@@ -364,7 +364,7 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
         }
         ExtraClient::Jan => {
             let installed =
-                is_app_installed("Jan") || home_dir().map_or(false, |h| h.join("jan").exists());
+                is_app_installed("Jan") || home_dir().is_some_and(|h| h.join("jan").exists());
             (
                 installed,
                 if installed {
@@ -381,7 +381,7 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
                 return (true, version.or_else(|| Some("detected".to_string())));
             }
             let installed =
-                is_app_installed("Cursor") || cursor_config_path().map_or(false, |p| p.exists());
+                is_app_installed("Cursor") || cursor_config_path().is_some_and(|p| p.exists());
             (
                 installed,
                 if installed {
@@ -445,7 +445,7 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
         }
         ExtraClient::LobeChat => {
             let installed = is_app_installed("LobeChat")
-                || app_support_dir().map_or(false, |d| d.join("LobeChat").exists());
+                || app_support_dir().is_some_and(|d| d.join("LobeChat").exists());
             (
                 installed,
                 if installed {
@@ -526,7 +526,7 @@ fn check_chatbox_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| utils::urls_match(u, proxy_url));
+        .is_some_and(|u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -557,7 +557,7 @@ fn check_cherry_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| utils::urls_match(u, proxy_url));
+        .is_some_and(|u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -580,7 +580,7 @@ fn check_jan_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| utils::urls_match(u, proxy_url));
+        .is_some_and(|u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -599,7 +599,7 @@ fn check_sillytavern_synced(
 
     let is_synced = current_url
         .as_deref()
-        .map_or(false, |u| utils::urls_match(u, proxy_url));
+        .is_some_and(|u| utils::urls_match(u, proxy_url));
 
     (is_synced, has_backup, current_url)
 }
@@ -726,8 +726,7 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
         // Remove existing hajimi provider
         arr.retain(|p| {
             p.get("id")
-                .and_then(|v| v.as_str())
-                .map_or(true, |id| id != HAJIMI_MARKER)
+                .and_then(|v| v.as_str()) != Some(HAJIMI_MARKER)
         });
         arr.push(provider);
     }
@@ -747,7 +746,7 @@ fn sync_jan(proxy_url: &str, api_key: &str, _model: Option<&str>) -> Result<(), 
     // Normalise to always include /v1 before /chat/completions
     let base = proxy_url.trim().trim_end_matches('/');
     let base = base.trim_end_matches("/v1");
-    let full_url = format!("{}/v1/chat/completions", base);
+    let full_url = format!("{base}/v1/chat/completions");
 
     let config = serde_json::json!({
         "full_url": full_url,
@@ -808,9 +807,9 @@ pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
     }
 
     if config_path.exists() {
-        fs::remove_file(&config_path).map_err(|e| format!("Failed to remove config: {}", e))?;
+        fs::remove_file(&config_path).map_err(|e| format!("Failed to remove config: {e}"))?;
     }
-    fs::rename(&backup, &config_path).map_err(|e| format!("Failed to restore config: {}", e))?;
+    fs::rename(&backup, &config_path).map_err(|e| format!("Failed to restore config: {e}"))?;
 
     tracing::info!(
         "[extra_clients] Restored {} config from backup",
@@ -832,28 +831,28 @@ pub fn read_extra_config_content(client: &ExtraClient) -> Result<String, String>
     })?;
 
     if !config_path.exists() {
-        return Err(format!("Config file does not exist: {:?}", config_path));
+        return Err(format!("Config file does not exist: {config_path:?}"));
     }
 
-    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))
+    fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {e}"))
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn backup_path_for(config_path: &PathBuf) -> PathBuf {
+fn backup_path_for(config_path: &std::path::Path) -> PathBuf {
     let file_name = config_path
         .file_name()
         .unwrap_or_default()
         .to_string_lossy();
-    config_path.with_file_name(format!("{}{}", file_name, BACKUP_SUFFIX))
+    config_path.with_file_name(format!("{file_name}{BACKUP_SUFFIX}"))
 }
 
-fn ensure_parent_dir(path: &PathBuf) -> Result<(), String> {
+fn ensure_parent_dir(path: &std::path::Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directory {:?}: {}", parent, e))?;
+            .map_err(|e| format!("Failed to create directory {parent:?}: {e}"))?;
     }
     Ok(())
 }
@@ -867,6 +866,34 @@ fn read_or_empty_json(path: &PathBuf) -> Value {
     } else {
         serde_json::json!({})
     }
+}
+
+pub fn write_extra_config_content(client: &ExtraClient, _file_name: &str, content: &str) -> Result<(), String> {
+    // ClaudeVSCode delegates to cli_sync
+    if matches!(client, ExtraClient::ClaudeVSCode) {
+        let cli_app = cli_sync::CliApp::Claude;
+        let files = cli_app.config_files();
+        let name = files
+            .first()
+            .map(|f| f.name.as_str())
+            .unwrap_or("settings.json");
+        return cli_sync::write_config_content(&cli_app, name, content);
+    }
+
+    let config_path = config_path_for(client).ok_or_else(|| {
+        format!(
+            "{} does not use a writable config file",
+            client.display_name()
+        )
+    })?;
+
+    utils::atomic_write(&config_path, content)
+        .map_err(|e| format!("Failed to write config for {}: {}", client.display_name(), e))
+}
+
+/// Return the parent folder of the config file for a given client.
+pub fn get_config_folder(client: &ExtraClient) -> Option<std::path::PathBuf> {
+    config_path_for(client).and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
 // ---------------------------------------------------------------------------
@@ -885,7 +912,7 @@ mod tests {
         for client in ExtraClient::all() {
             let name = client.as_str();
             let parsed = ExtraClient::from_str(name);
-            assert_eq!(parsed, Some(*client), "roundtrip failed for {}", name);
+            assert_eq!(parsed, Some(*client), "roundtrip failed for {name}");
         }
     }
 
@@ -992,8 +1019,7 @@ mod tests {
         if let Some(arr) = config.get_mut("providers").and_then(|p| p.as_array_mut()) {
             arr.retain(|p| {
                 p.get("id")
-                    .and_then(|v| v.as_str())
-                    .map_or(true, |id| id != HAJIMI_MARKER)
+                    .and_then(|v| v.as_str()) != Some(HAJIMI_MARKER)
             });
             arr.push(new_provider);
         }
@@ -1012,7 +1038,7 @@ mod tests {
         let api_key = "sk-test";
         let base = proxy_url.trim().trim_end_matches('/');
         let base = base.trim_end_matches("/v1");
-        let full_url = format!("{}/v1/chat/completions", base);
+        let full_url = format!("{base}/v1/chat/completions");
 
         let config = serde_json::json!({
             "full_url": full_url,
@@ -1141,32 +1167,4 @@ mod tests {
         assert_eq!(secrets["api_key_openai"], "sk-test");
         assert_eq!(secrets["api_url_scale"], "https://proxy.test");
     }
-}
-
-pub fn write_extra_config_content(client: &ExtraClient, _file_name: &str, content: &str) -> Result<(), String> {
-    // ClaudeVSCode delegates to cli_sync
-    if matches!(client, ExtraClient::ClaudeVSCode) {
-        let cli_app = cli_sync::CliApp::Claude;
-        let files = cli_app.config_files();
-        let name = files
-            .first()
-            .map(|f| f.name.as_str())
-            .unwrap_or("settings.json");
-        return cli_sync::write_config_content(&cli_app, name, content);
-    }
-
-    let config_path = config_path_for(client).ok_or_else(|| {
-        format!(
-            "{} does not use a writable config file",
-            client.display_name()
-        )
-    })?;
-
-    utils::atomic_write(&config_path, content)
-        .map_err(|e| format!("Failed to write config for {}: {}", client.display_name(), e))
-}
-
-/// Return the parent folder of the config file for a given client.
-pub fn get_config_folder(client: &ExtraClient) -> Option<std::path::PathBuf> {
-    config_path_for(client).and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }

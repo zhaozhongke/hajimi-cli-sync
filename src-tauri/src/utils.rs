@@ -49,7 +49,7 @@ pub fn extract_version(raw: &str) -> String {
 }
 
 fn is_version_like(s: &str) -> bool {
-    s.chars().next().map_or(false, |c| c.is_ascii_digit())
+    s.chars().next().is_some_and(|c| c.is_ascii_digit())
         && s.contains('.')
         && s.chars().all(|c| c.is_ascii_digit() || c == '.')
 }
@@ -233,7 +233,7 @@ pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<Path
         .ok_or_else(|| SyncError::Other("Invalid file path".to_string()))?;
 
     // Also maintain the simple .bak for quick restore (backwards compat)
-    let simple_backup = path.with_file_name(format!("{}{}", file_name, suffix));
+    let simple_backup = path.with_file_name(format!("{file_name}{suffix}"));
     if !simple_backup.exists() {
         fs::copy(path, &simple_backup).map_err(|e| SyncError::FileWriteFailed {
             path: simple_backup.to_string_lossy().to_string(),
@@ -243,7 +243,7 @@ pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<Path
 
     // Create timestamped backup: filename.20260218_153045.bak
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-    let backup_name = format!("{}.{}{}", file_name, timestamp, suffix);
+    let backup_name = format!("{file_name}.{timestamp}{suffix}");
     let backup_path = parent.join(&backup_name);
 
     fs::copy(path, &backup_path).map_err(|e| SyncError::FileWriteFailed {
@@ -260,16 +260,16 @@ pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<Path
 
 /// Remove old timestamped backups, keeping the newest `BACKUP_RETAIN_COUNT`.
 fn cleanup_old_backups(dir: &std::path::Path, base_name: &str, suffix: &str) -> Result<()> {
-    let prefix = format!("{}.", base_name);
+    let prefix = format!("{base_name}.");
     let suffix_str = suffix.to_string();
 
     let mut backups: Vec<_> = fs::read_dir(dir)
-        .map_err(|e| SyncError::Other(format!("Failed to read dir: {}", e)))?
+        .map_err(|e| SyncError::Other(format!("Failed to read dir: {e}")))?
         .filter_map(|entry| entry.ok())
         .filter(|entry| {
             let name = entry.file_name().to_string_lossy().to_string();
             // Match pattern: base_name.TIMESTAMP.suffix (e.g. settings.json.20260218_153045.antigravity.bak)
-            name.starts_with(&prefix) && name.ends_with(&suffix_str) && name != format!("{}{}", base_name, suffix_str)
+            name.starts_with(&prefix) && name.ends_with(&suffix_str) && name != format!("{base_name}{suffix_str}")
         })
         .collect();
 
@@ -377,7 +377,7 @@ fn try_atomic_write(tmp_path: &PathBuf, target: &PathBuf, content: &str) -> Resu
         } else {
             SyncError::FileWriteFailed {
                 path: target.to_string_lossy().to_string(),
-                reason: format!("Rename failed: {}", e),
+                reason: format!("Rename failed: {e}"),
             }
         }
     })?;
@@ -403,7 +403,7 @@ pub fn urls_match(a: &str, b: &str) -> bool {
         if t.ends_with("/v1") {
             t.to_string()
         } else {
-            format!("{}/v1", t)
+            format!("{t}/v1")
         }
     };
     normalize(a) == normalize(b)
@@ -424,10 +424,12 @@ pub fn validate_url(url: &str) -> Result<()> {
     }
     // SECURITY: Reject URLs without a valid host to prevent SSRF against
     // metadata endpoints or bare schemes like "http://" alone.
-    let after_scheme = if trimmed.starts_with("https://") {
-        &trimmed[8..]
+    let after_scheme = if let Some(s) = trimmed.strip_prefix("https://") {
+        s
+    } else if let Some(s) = trimmed.strip_prefix("http://") {
+        s
     } else {
-        &trimmed[7..]
+        unreachable!()
     };
     // Must have at least one char before any '/' or ':'
     let host_end = after_scheme.find('/').unwrap_or(after_scheme.len());

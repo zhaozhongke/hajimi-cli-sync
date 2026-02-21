@@ -37,7 +37,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), String> {
         COMMIT;
         ",
     )
-    .map_err(|e| format!("create_tables failed: {}", e))
+    .map_err(|e| format!("create_tables failed: {e}"))
 }
 
 /// Step-wise migrations keyed by user_version.
@@ -46,16 +46,16 @@ pub fn create_tables(conn: &Connection) -> Result<(), String> {
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     let version: u32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
-        .map_err(|e| format!("Failed to read user_version: {}", e))?;
+        .map_err(|e| format!("Failed to read user_version: {e}"))?;
 
     if version < SCHEMA_VERSION {
         // v0 → v1: schema already applied by create_tables above.
         // Future versions add new `if version < N { ... }` blocks here.
         // PRAGMA user_version does not support bound parameters in SQLite.
         // SCHEMA_VERSION is a compile-time const u32 — not user-controlled, safe to format.
-        let pragma_sql = format!("PRAGMA user_version = {}", SCHEMA_VERSION);
+        let pragma_sql = format!("PRAGMA user_version = {SCHEMA_VERSION}");
         conn.execute_batch(&pragma_sql)
-            .map_err(|e| format!("Failed to set user_version: {}", e))?;
+            .map_err(|e| format!("Failed to set user_version: {e}"))?;
     }
 
     Ok(())

@@ -41,7 +41,9 @@ struct LoginData {
     id: i64,
     username: String,
     display_name: Option<String>,
+    #[allow(dead_code)]
     role: Option<i64>,
+    #[allow(dead_code)]
     status: Option<i64>,
 }
 
@@ -108,7 +110,7 @@ fn build_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))
 }
 
 fn normalize_base(base_url: &str) -> String {
@@ -135,12 +137,12 @@ fn auth_headers(session_cookie: &str, user_id: i64) -> Result<HeaderMap, String>
     headers.insert(
         COOKIE,
         HeaderValue::from_str(session_cookie)
-            .map_err(|e| format!("Invalid cookie value: {}", e))?,
+            .map_err(|e| format!("Invalid cookie value: {e}"))?,
     );
     headers.insert(
         "New-Api-User",
         HeaderValue::from_str(&user_id.to_string())
-            .map_err(|e| format!("Invalid user id header: {}", e))?,
+            .map_err(|e| format!("Invalid user id header: {e}"))?,
     );
     Ok(headers)
 }
@@ -164,14 +166,12 @@ pub async fn check_platform(base_url: String) -> Result<PlatformInfo, String> {
     let client = build_client()?;
 
     let response = client
-        .get(format!("{}/api/status", base))
+        .get(format!("{base}/api/status"))
         .send()
         .await
         .map_err(|e| {
             if e.is_timeout() {
                 "CONNECT_TIMEOUT".to_string()
-            } else if e.is_connect() {
-                "CONNECT_FAILED".to_string()
             } else {
                 "CONNECT_FAILED".to_string()
             }
@@ -184,7 +184,7 @@ pub async fn check_platform(base_url: String) -> Result<PlatformInfo, String> {
     let body: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Invalid response: {}", e))?;
+        .map_err(|e| format!("Invalid response: {e}"))?;
 
     let data = body.get("data").ok_or("Invalid response format")?;
 
@@ -220,7 +220,7 @@ pub async fn account_login(
     let client = build_client()?;
 
     let response = client
-        .post(format!("{}/api/user/login", base))
+        .post(format!("{base}/api/user/login"))
         .json(&serde_json::json!({
             "username": username,
             "password": password,
@@ -230,8 +230,6 @@ pub async fn account_login(
         .map_err(|e| {
             if e.is_timeout() {
                 "CONNECT_TIMEOUT".to_string()
-            } else if e.is_connect() {
-                "CONNECT_FAILED".to_string()
             } else {
                 "CONNECT_FAILED".to_string()
             }
@@ -313,11 +311,11 @@ pub async fn account_get_tokens(
     let headers = auth_headers(&session, user_id)?;
 
     let response = client
-        .get(format!("{}/api/token/?p=1&page_size=100", base))
+        .get(format!("{base}/api/token/?p=1&page_size=100"))
         .headers(headers)
         .send()
         .await
-        .map_err(|e| format!("Failed to fetch tokens: {}", e))?;
+        .map_err(|e| format!("Failed to fetch tokens: {e}"))?;
 
     let status_code = response.status();
 
@@ -327,13 +325,13 @@ pub async fn account_get_tokens(
     }
 
     if !status_code.is_success() {
-        return Err(format!("Server returned {}", status_code));
+        return Err(format!("Server returned {status_code}"));
     }
 
     let body: ApiResponse<PageData<RawToken>> = response
         .json()
         .await
-        .map_err(|e| format!("Invalid response: {}", e))?;
+        .map_err(|e| format!("Invalid response: {e}"))?;
 
     if !body.success {
         let msg = body.message.unwrap_or_else(|| "Failed to fetch tokens".to_string());
@@ -357,7 +355,7 @@ pub async fn account_get_tokens(
             let key = if key_raw.starts_with("sk-") {
                 key_raw
             } else {
-                format!("sk-{}", key_raw)
+                format!("sk-{key_raw}")
             };
 
             ApiTokenInfo {
@@ -400,11 +398,11 @@ pub async fn account_check_session(
     let headers = auth_headers(&session, user_id)?;
 
     let response = client
-        .get(format!("{}/api/user/self", base))
+        .get(format!("{base}/api/user/self"))
         .headers(headers)
         .send()
         .await
-        .map_err(|e| format!("Session check failed: {}", e))?;
+        .map_err(|e| format!("Session check failed: {e}"))?;
 
     let status_code = response.status();
 
@@ -420,13 +418,13 @@ pub async fn account_check_session(
     }
 
     if !status_code.is_success() {
-        return Err(format!("Server returned {}", status_code));
+        return Err(format!("Server returned {status_code}"));
     }
 
     let body: ApiResponse<LoginData> = response
         .json()
         .await
-        .map_err(|e| format!("Invalid response: {}", e))?;
+        .map_err(|e| format!("Invalid response: {e}"))?;
 
     if !body.success {
         return Err("SESSION_EXPIRED".to_string());
@@ -481,7 +479,7 @@ pub async fn account_logout(
         if let Ok(headers) = auth_headers(&session, uid) {
             // Fire and forget — don't fail if server logout fails
             let _ = client
-                .get(format!("{}/api/user/logout", base))
+                .get(format!("{base}/api/user/logout"))
                 .headers(headers)
                 .send()
                 .await;

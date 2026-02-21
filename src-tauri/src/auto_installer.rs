@@ -223,8 +223,7 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
         // Desktop apps — cannot be installed via npm
         "chatbox" | "cherry-studio" | "jan" | "cursor" | "lobechat" | "boltai" => {
             return Err(SyncError::Other(format!(
-                "{} is a desktop application. Please download it from its official website.",
-                tool
+                "{tool} is a desktop application. Please download it from its official website."
             )));
         }
         // VS Code extensions — install via `code --install-extension`
@@ -254,8 +253,7 @@ pub async fn auto_install_cli_tool(tool: &str) -> Result<()> {
         }
         _ => {
             return Err(SyncError::Other(format!(
-                "Unknown tool '{}'. Only known tools can be installed.",
-                tool
+                "Unknown tool '{tool}'. Only known tools can be installed."
             )));
         }
     };
@@ -343,7 +341,7 @@ async fn run_silent_command_with_timeout(
         command.output()
     });
 
-    let cmd_display = format!("{} {:?}", cmd, args);
+    let cmd_display = format!("{cmd} {args:?}");
 
     let result = match tokio::time::timeout(timeout, task).await {
         Ok(join_result) => join_result.map_err(|e| SyncError::CommandExecutionFailed {
@@ -459,6 +457,7 @@ async fn download_portable_git() -> Result<()> {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 async fn download_portable_git() -> Result<()> {
     Err(SyncError::Other(
         "Portable Git only available on Windows".to_string(),
@@ -567,6 +566,7 @@ async fn install_nodejs_nodesource() -> Result<()> {
 }
 
 #[cfg(not(target_os = "linux"))]
+#[allow(dead_code)]
 async fn install_nodejs_nodesource() -> Result<()> {
     Ok(())
 }
@@ -591,15 +591,14 @@ async fn download_and_extract(url: &str, dest: &std::path::Path) -> Result<()> {
         .get(url)
         .send()
         .await
-        .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
+        .map_err(|e| SyncError::Other(format!("Download failed: {e}")))?;
 
     // SECURITY: Enforce a 500 MB size limit to prevent disk exhaustion
     const MAX_DOWNLOAD_SIZE: u64 = 500 * 1024 * 1024;
     if let Some(len) = response.content_length() {
         if len > MAX_DOWNLOAD_SIZE {
             return Err(SyncError::Other(format!(
-                "Download too large: {} bytes (max {})",
-                len, MAX_DOWNLOAD_SIZE
+                "Download too large: {len} bytes (max {MAX_DOWNLOAD_SIZE})"
             )));
         }
     }
@@ -607,7 +606,7 @@ async fn download_and_extract(url: &str, dest: &std::path::Path) -> Result<()> {
     let bytes = response
         .bytes()
         .await
-        .map_err(|e| SyncError::Other(format!("Download failed: {}", e)))?;
+        .map_err(|e| SyncError::Other(format!("Download failed: {e}")))?;
 
     if bytes.len() as u64 > MAX_DOWNLOAD_SIZE {
         return Err(SyncError::Other(format!(
@@ -716,7 +715,7 @@ pub async fn auto_install_dependencies() -> std::result::Result<Vec<InstallProgr
                     tool: "git".to_string(),
                     status: InstallStatus::Failed,
                     progress: 0,
-                    message: format!("Failed: {}", e),
+                    message: format!("Failed: {e}"),
                 });
             }
         }
@@ -753,7 +752,7 @@ pub async fn auto_install_dependencies() -> std::result::Result<Vec<InstallProgr
                     tool: "nodejs".to_string(),
                     status: InstallStatus::Failed,
                     progress: 0,
-                    message: format!("Failed: {}", e),
+                    message: format!("Failed: {e}"),
                 });
             }
         }
@@ -787,13 +786,13 @@ pub async fn install_cli_tool(tool: String) -> std::result::Result<InstallProgre
             tool: tool.clone(),
             status: InstallStatus::Completed,
             progress: 100,
-            message: format!("{} installed successfully", tool),
+            message: format!("{tool} installed successfully"),
         }),
         Err(e) => Ok(InstallProgress {
             tool: tool.clone(),
             status: InstallStatus::Failed,
             progress: 0,
-            message: format!("Failed: {}", e),
+            message: format!("Failed: {e}"),
         }),
     }
 }
