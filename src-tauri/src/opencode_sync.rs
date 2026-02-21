@@ -62,8 +62,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
         None => return (false, false, None),
     };
 
-    let backup_path =
-        config_path.with_file_name(format!("{OPENCODE_CONFIG_FILE}{BACKUP_SUFFIX}"));
+    let backup_path = config_path.with_file_name(format!("{OPENCODE_CONFIG_FILE}{BACKUP_SUFFIX}"));
     let has_backup = backup_path.exists();
 
     if !config_path.exists() {
@@ -243,8 +242,7 @@ pub fn restore_opencode_config() -> Result<(), String> {
     let config_path =
         get_config_path().ok_or_else(|| "Failed to get OpenCode config directory".to_string())?;
 
-    let backup_path =
-        config_path.with_file_name(format!("{OPENCODE_CONFIG_FILE}{BACKUP_SUFFIX}"));
+    let backup_path = config_path.with_file_name(format!("{OPENCODE_CONFIG_FILE}{BACKUP_SUFFIX}"));
     if backup_path.exists() {
         // Atomic rename replaces the target file directly — no intermediate delete needed.
         fs::rename(&backup_path, &config_path)
@@ -268,8 +266,7 @@ pub fn read_opencode_config_content() -> Result<String, String> {
 
 pub fn write_opencode_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
-    serde_json::from_str::<serde_json::Value>(content)
-        .map_err(|e| format!("Invalid JSON: {e}"))?;
+    serde_json::from_str::<serde_json::Value>(content).map_err(|e| format!("Invalid JSON: {e}"))?;
     fs::write(&config_path, content).map_err(|e| format!("Failed to write config: {e}"))
 }
 

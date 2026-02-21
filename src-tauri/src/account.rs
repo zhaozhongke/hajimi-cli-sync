@@ -136,8 +136,7 @@ fn auth_headers(session_cookie: &str, user_id: i64) -> Result<HeaderMap, String>
     let mut headers = HeaderMap::new();
     headers.insert(
         COOKIE,
-        HeaderValue::from_str(session_cookie)
-            .map_err(|e| format!("Invalid cookie value: {e}"))?,
+        HeaderValue::from_str(session_cookie).map_err(|e| format!("Invalid cookie value: {e}"))?,
     );
     headers.insert(
         "New-Api-User",
@@ -150,7 +149,9 @@ fn auth_headers(session_cookie: &str, user_id: i64) -> Result<HeaderMap, String>
 /// Helper: lock the AccountState mutex with poison recovery.
 /// If a thread panicked while holding the lock, we recover the inner data
 /// instead of permanently locking out all subsequent callers.
-fn lock_account(state: &AccountState) -> Result<std::sync::MutexGuard<'_, AccountStateInner>, String> {
+fn lock_account(
+    state: &AccountState,
+) -> Result<std::sync::MutexGuard<'_, AccountStateInner>, String> {
     state.inner.lock().or_else(|poisoned| {
         tracing::warn!("AccountState mutex was poisoned, recovering");
         Ok(poisoned.into_inner())
@@ -245,16 +246,27 @@ pub async fn account_login(
         .map_err(|_| "INVALID_RESPONSE".to_string())?;
 
     // Check for 2FA requirement
-    if let Some(true) = body.get("data").and_then(|d| d.get("require_2fa")).and_then(|v| v.as_bool()) {
+    if let Some(true) = body
+        .get("data")
+        .and_then(|d| d.get("require_2fa"))
+        .and_then(|v| v.as_bool())
+    {
         return Err("REQUIRE_2FA".to_string());
     }
 
-    let success = body.get("success").and_then(|v| v.as_bool()).unwrap_or(false);
+    let success = body
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     if !success {
         let server_msg = body.get("message").and_then(|v| v.as_str()).unwrap_or("");
         // Map common new-api error messages to error codes
-        if server_msg.contains("密码") || server_msg.contains("password") || server_msg.contains("用户名") || server_msg.contains("username") {
+        if server_msg.contains("密码")
+            || server_msg.contains("password")
+            || server_msg.contains("用户名")
+            || server_msg.contains("username")
+        {
             return Err("WRONG_CREDENTIALS".to_string());
         }
         return Err("LOGIN_FAILED".to_string());
@@ -265,9 +277,20 @@ pub async fn account_login(
     }
 
     let data = body.get("data").ok_or("INVALID_RESPONSE")?;
-    let id = data.get("id").and_then(|v| v.as_i64()).ok_or("INVALID_RESPONSE")?;
-    let uname = data.get("username").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let display = data.get("display_name").and_then(|v| v.as_str()).unwrap_or(&uname).to_string();
+    let id = data
+        .get("id")
+        .and_then(|v| v.as_i64())
+        .ok_or("INVALID_RESPONSE")?;
+    let uname = data
+        .get("username")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let display = data
+        .get("display_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&uname)
+        .to_string();
     let user_status = data.get("status").and_then(|v| v.as_i64());
 
     // Check if user is disabled
@@ -334,7 +357,9 @@ pub async fn account_get_tokens(
         .map_err(|e| format!("Invalid response: {e}"))?;
 
     if !body.success {
-        let msg = body.message.unwrap_or_else(|| "Failed to fetch tokens".to_string());
+        let msg = body
+            .message
+            .unwrap_or_else(|| "Failed to fetch tokens".to_string());
         return Err(msg);
     }
 
@@ -461,9 +486,7 @@ pub async fn account_restore_session(
 
 /// Logout — clear state
 #[tauri::command]
-pub async fn account_logout(
-    state: tauri::State<'_, AccountState>,
-) -> Result<(), String> {
+pub async fn account_logout(state: tauri::State<'_, AccountState>) -> Result<(), String> {
     // Optionally call server logout
     let (base, session, user_id) = {
         let inner = lock_account(&state)?;

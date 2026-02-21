@@ -5,9 +5,8 @@ use std::path::PathBuf;
 
 use crate::utils;
 
-static GEMINI_BASE_URL_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-    regex::Regex::new(r#"(?m)^GOOGLE_GEMINI_BASE_URL=(.*)$"#).unwrap()
-});
+static GEMINI_BASE_URL_RE: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r#"(?m)^GOOGLE_GEMINI_BASE_URL=(.*)$"#).unwrap());
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum CliApp {
@@ -123,19 +122,19 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
         }
 
         if !file.path.exists() {
-                // .claude.json and Gemini's optional files are not required for synced status.
-                // Only settings.json (Claude) / config.toml (Codex) / .env (Gemini) are mandatory.
-                if app == &CliApp::Claude && file.name == ".claude.json" {
-                    continue;
-                }
-                if app == &CliApp::Gemini
-                    && (file.name == "settings.json" || file.name == "config.json")
-                {
-                    continue;
-                }
-                all_synced = false;
+            // .claude.json and Gemini's optional files are not required for synced status.
+            // Only settings.json (Claude) / config.toml (Codex) / .env (Gemini) are mandatory.
+            if app == &CliApp::Claude && file.name == ".claude.json" {
                 continue;
             }
+            if app == &CliApp::Gemini
+                && (file.name == "settings.json" || file.name == "config.json")
+            {
+                continue;
+            }
+            all_synced = false;
+            continue;
+        }
 
         let content = match fs::read_to_string(&file.path) {
             Ok(c) => c,
@@ -168,25 +167,22 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
             CliApp::Codex => {
                 if file.name == "config.toml" {
                     use toml_edit::DocumentMut;
-                    let synced = content
-                        .parse::<DocumentMut>()
-                        .ok()
-                        .and_then(|doc| {
-                            let provider = doc
-                                .get("model_provider")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
-                            if provider != "custom" {
-                                return None;
-                            }
-                            doc.get("model_providers")
-                                .and_then(|mp| mp.as_table())
-                                .and_then(|t| t.get("custom"))
-                                .and_then(|c| c.as_table())
-                                .and_then(|t| t.get("base_url"))
-                                .and_then(|v| v.as_str())
-                                .map(|u| u.to_string())
-                        });
+                    let synced = content.parse::<DocumentMut>().ok().and_then(|doc| {
+                        let provider = doc
+                            .get("model_provider")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        if provider != "custom" {
+                            return None;
+                        }
+                        doc.get("model_providers")
+                            .and_then(|mp| mp.as_table())
+                            .and_then(|t| t.get("custom"))
+                            .and_then(|c| c.as_table())
+                            .and_then(|t| t.get("base_url"))
+                            .and_then(|v| v.as_str())
+                            .map(|u| u.to_string())
+                    });
                     match synced {
                         Some(url) => {
                             current_base_url = Some(url.clone());
@@ -269,18 +265,15 @@ pub fn sync_config(
                                 .entry("customApiKeyResponses")
                                 .or_insert(serde_json::json!({}));
                             if let Some(resp_obj) = responses.as_object_mut() {
-                                let approved = resp_obj
-                                    .entry("approved")
-                                    .or_insert(serde_json::json!([]));
+                                let approved =
+                                    resp_obj.entry("approved").or_insert(serde_json::json!([]));
                                 if let Some(arr) = approved.as_array_mut() {
                                     let key_val = Value::String(api_key.to_string());
                                     if !arr.contains(&key_val) {
                                         arr.push(key_val);
                                     }
                                 }
-                                resp_obj
-                                    .entry("rejected")
-                                    .or_insert(serde_json::json!([]));
+                                resp_obj.entry("rejected").or_insert(serde_json::json!([]));
                             }
                         }
                     }
@@ -590,8 +583,7 @@ pub fn write_config_content(app: &CliApp, file_name: &str, content: &str) -> Res
 
     // Validate JSON if it's a JSON file
     if file_name.ends_with(".json") {
-        serde_json::from_str::<Value>(content)
-            .map_err(|e| format!("Invalid JSON: {e}"))?;
+        serde_json::from_str::<Value>(content).map_err(|e| format!("Invalid JSON: {e}"))?;
     }
 
     utils::atomic_write(&file.path, content)
@@ -748,7 +740,10 @@ some_key = "keep"
 
         let doc = content.parse::<DocumentMut>().unwrap();
 
-        let provider = doc.get("model_provider").and_then(|v| v.as_str()).unwrap_or("");
+        let provider = doc
+            .get("model_provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         assert_eq!(provider, "custom");
 
         let mp_item = doc.get("model_providers").unwrap();
@@ -756,7 +751,8 @@ some_key = "keep"
         println!("model_providers type_name = {mp_type}");
 
         // as_table() path
-        let via_table = mp_item.as_table()
+        let via_table = mp_item
+            .as_table()
             .and_then(|t| t.get("custom"))
             .and_then(|c| {
                 println!("custom type_name = {}", c.type_name());
@@ -823,7 +819,8 @@ base_url = "http://old-url/v1"
         // Verify the written content can be read back
         let written = doc.to_string();
         let doc2 = written.parse::<DocumentMut>().unwrap();
-        let result = doc2.get("model_providers")
+        let result = doc2
+            .get("model_providers")
             .and_then(|mp| mp.as_table())
             .and_then(|t| t.get("custom"))
             .and_then(|c| c.as_table())
@@ -831,7 +828,11 @@ base_url = "http://old-url/v1"
             .and_then(|v| v.as_str())
             .map(|u| u.to_string());
 
-        assert_eq!(result.as_deref(), Some(proxy_url), "Written base_url should be readable back");
+        assert_eq!(
+            result.as_deref(),
+            Some(proxy_url),
+            "Written base_url should be readable back"
+        );
     }
 
     /// 测试Codex TOML状态检测 — 含多个provider的真实文件
@@ -859,11 +860,15 @@ base_url = "http://localhost:8045/v1"
 
         let doc = content.parse::<DocumentMut>().unwrap();
 
-        let provider = doc.get("model_provider").and_then(|v| v.as_str()).unwrap_or("");
+        let provider = doc
+            .get("model_provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         assert_eq!(provider, "custom", "model_provider should be 'custom'");
 
         // Test the fixed parse chain (with as_table())
-        let result = doc.get("model_providers")
+        let result = doc
+            .get("model_providers")
             .and_then(|mp| mp.as_table())
             .and_then(|t| t.get("custom"))
             .and_then(|c| c.as_table())
@@ -871,7 +876,10 @@ base_url = "http://localhost:8045/v1"
             .and_then(|v| v.as_str())
             .map(|u| u.to_string());
 
-        assert!(result.is_some(), "base_url should be found via as_table() chain");
+        assert!(
+            result.is_some(),
+            "base_url should be found via as_table() chain"
+        );
         assert_eq!(
             result.unwrap().trim_end_matches('/'),
             proxy_url.trim_end_matches('/'),
@@ -1063,25 +1071,24 @@ base_url = "http://localhost:8045/v1"
                     .entry("customApiKeyResponses")
                     .or_insert(serde_json::json!({}));
                 if let Some(resp_obj) = responses.as_object_mut() {
-                    let approved = resp_obj
-                        .entry("approved")
-                        .or_insert(serde_json::json!([]));
+                    let approved = resp_obj.entry("approved").or_insert(serde_json::json!([]));
                     if let Some(arr) = approved.as_array_mut() {
                         let key_val = Value::String(api_key.to_string());
                         if !arr.contains(&key_val) {
                             arr.push(key_val);
                         }
                     }
-                    resp_obj
-                        .entry("rejected")
-                        .or_insert(serde_json::json!([]));
+                    resp_obj.entry("rejected").or_insert(serde_json::json!([]));
                 }
             }
         }
 
         assert_eq!(json["hasCompletedOnboarding"], true);
         assert_eq!(json["autoUpdates"], false);
-        assert_eq!(json["customApiKeyResponses"]["approved"][0], "sk-test-key-123");
+        assert_eq!(
+            json["customApiKeyResponses"]["approved"][0],
+            "sk-test-key-123"
+        );
         assert!(json["customApiKeyResponses"]["rejected"].is_array());
     }
 
@@ -1103,9 +1110,7 @@ base_url = "http://localhost:8045/v1"
                 .entry("customApiKeyResponses")
                 .or_insert(serde_json::json!({}));
             if let Some(resp_obj) = responses.as_object_mut() {
-                let approved = resp_obj
-                    .entry("approved")
-                    .or_insert(serde_json::json!([]));
+                let approved = resp_obj.entry("approved").or_insert(serde_json::json!([]));
                 if let Some(arr) = approved.as_array_mut() {
                     let key_val = Value::String(api_key.to_string());
                     if !arr.contains(&key_val) {
@@ -1116,7 +1121,13 @@ base_url = "http://localhost:8045/v1"
         }
 
         // 应该仍然只有1个key，不会重复追加
-        assert_eq!(json["customApiKeyResponses"]["approved"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            json["customApiKeyResponses"]["approved"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     /// 测试restore清理.claude.json中的autoUpdates和customApiKeyResponses

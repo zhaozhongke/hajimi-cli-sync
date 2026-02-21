@@ -142,11 +142,8 @@ pub fn set_current(db: &Database, id: &str) -> Result<(), String> {
         .map_err(|e| format!("set_current begin: {e}"))?;
     tx.execute("UPDATE providers SET is_current = 0", [])
         .map_err(|e| format!("set_current clear: {e}"))?;
-    tx.execute(
-        "UPDATE providers SET is_current = 1 WHERE id = ?1",
-        [id],
-    )
-    .map_err(|e| format!("set_current set: {e}"))?;
+    tx.execute("UPDATE providers SET is_current = 1 WHERE id = ?1", [id])
+        .map_err(|e| format!("set_current set: {e}"))?;
     tx.commit().map_err(|e| format!("set_current commit: {e}"))
 }
 
@@ -168,8 +165,7 @@ pub fn delete(db: &Database, id: &str) -> Result<(), String> {
 
     if is_current != 0 {
         return Err(
-            "Cannot delete the active provider — switch to another provider first."
-                .to_string(),
+            "Cannot delete the active provider — switch to another provider first.".to_string(),
         );
     }
 

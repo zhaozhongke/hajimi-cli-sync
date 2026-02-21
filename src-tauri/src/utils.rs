@@ -1,4 +1,3 @@
-
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -269,7 +268,9 @@ fn cleanup_old_backups(dir: &std::path::Path, base_name: &str, suffix: &str) -> 
         .filter(|entry| {
             let name = entry.file_name().to_string_lossy().to_string();
             // Match pattern: base_name.TIMESTAMP.suffix (e.g. settings.json.20260218_153045.antigravity.bak)
-            name.starts_with(&prefix) && name.ends_with(&suffix_str) && name != format!("{base_name}{suffix_str}")
+            name.starts_with(&prefix)
+                && name.ends_with(&suffix_str)
+                && name != format!("{base_name}{suffix_str}")
         })
         .collect();
 
@@ -278,17 +279,16 @@ fn cleanup_old_backups(dir: &std::path::Path, base_name: &str, suffix: &str) -> 
     }
 
     // Sort by modification time (oldest first)
-    backups.sort_by_key(|entry| {
-        entry
-            .metadata()
-            .and_then(|m| m.modified())
-            .ok()
-    });
+    backups.sort_by_key(|entry| entry.metadata().and_then(|m| m.modified()).ok());
 
     let remove_count = backups.len() - BACKUP_RETAIN_COUNT;
     for entry in backups.into_iter().take(remove_count) {
         if let Err(e) = fs::remove_file(entry.path()) {
-            tracing::warn!("[backup] Failed to remove old backup {:?}: {}", entry.path(), e);
+            tracing::warn!(
+                "[backup] Failed to remove old backup {:?}: {}",
+                entry.path(),
+                e
+            );
         } else {
             tracing::info!("[backup] Removed old backup: {:?}", entry.path());
         }

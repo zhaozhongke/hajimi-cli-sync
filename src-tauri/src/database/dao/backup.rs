@@ -36,11 +36,8 @@ pub fn get_backup(db: &Database, app_type: &str) -> Result<Option<String>, Strin
 /// Delete the backup for one app after a successful restore or sync.
 pub fn delete_backup(db: &Database, app_type: &str) -> Result<(), String> {
     let conn = lock_conn!(db.conn);
-    conn.execute(
-        "DELETE FROM config_backup WHERE app_type = ?1",
-        [app_type],
-    )
-    .map_err(|e| format!("delete_backup: {e}"))?;
+    conn.execute("DELETE FROM config_backup WHERE app_type = ?1", [app_type])
+        .map_err(|e| format!("delete_backup: {e}"))?;
     Ok(())
 }
 

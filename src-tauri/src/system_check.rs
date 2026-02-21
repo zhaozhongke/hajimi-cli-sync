@@ -70,7 +70,9 @@ pub fn check_system() -> SystemRequirements {
         issues.push(SystemIssue {
             severity: IssueSeverity::Warning,
             code: "NODE_NOT_FOUND".to_string(),
-            message: "Node.js is not installed (required for CLI tools, not needed for desktop apps)".to_string(),
+            message:
+                "Node.js is not installed (required for CLI tools, not needed for desktop apps)"
+                    .to_string(),
             fix_hint: get_install_hint("node"),
         });
     }

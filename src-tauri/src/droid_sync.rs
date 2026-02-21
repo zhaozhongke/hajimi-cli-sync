@@ -117,8 +117,8 @@ pub fn sync_droid_config(
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX)?;
 
     let mut config: Value = if config_path.exists() {
-        let content = fs::read_to_string(&config_path)
-            .map_err(|e| format!("Failed to read config: {e}"))?;
+        let content =
+            fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {e}"))?;
         serde_json::from_str(&content).unwrap_or_else(|e| {
             tracing::warn!("[droid_sync] Config corrupted, starting fresh: {}", e);
             serde_json::json!({})
@@ -205,8 +205,7 @@ pub fn read_droid_config_content() -> Result<String, String> {
 
 pub fn write_droid_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
-    serde_json::from_str::<serde_json::Value>(content)
-        .map_err(|e| format!("Invalid JSON: {e}"))?;
+    serde_json::from_str::<serde_json::Value>(content).map_err(|e| format!("Invalid JSON: {e}"))?;
     utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }
 

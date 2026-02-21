@@ -337,8 +337,7 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
         }
         ExtraClient::Chatbox => {
             let installed = is_app_installed("Chatbox")
-                || chatbox_config_path()
-                    .is_some_and(|p| p.parent().is_some_and(|d| d.exists()));
+                || chatbox_config_path().is_some_and(|p| p.parent().is_some_and(|d| d.exists()));
             (
                 installed,
                 if installed {
@@ -568,13 +567,10 @@ fn check_jan_synced(
     let json: Value = serde_json::from_str(content).unwrap_or_default();
 
     // Jan engine config uses "full_url" (ends with /chat/completions) and "api_key"
-    let current_url = json
-        .get("full_url")
-        .and_then(|v| v.as_str())
-        .map(|s| {
-            // Normalise: strip trailing /chat/completions to get base URL
-            s.trim_end_matches("/chat/completions").to_string()
-        });
+    let current_url = json.get("full_url").and_then(|v| v.as_str()).map(|s| {
+        // Normalise: strip trailing /chat/completions to get base URL
+        s.trim_end_matches("/chat/completions").to_string()
+    });
 
     let is_synced = current_url
         .as_deref()
@@ -722,10 +718,7 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
 
     if let Some(arr) = providers.as_array_mut() {
         // Remove existing hajimi provider
-        arr.retain(|p| {
-            p.get("id")
-                .and_then(|v| v.as_str()) != Some(HAJIMI_MARKER)
-        });
+        arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(HAJIMI_MARKER));
         arr.push(provider);
     }
 
@@ -866,7 +859,11 @@ fn read_or_empty_json(path: &PathBuf) -> Value {
     }
 }
 
-pub fn write_extra_config_content(client: &ExtraClient, _file_name: &str, content: &str) -> Result<(), String> {
+pub fn write_extra_config_content(
+    client: &ExtraClient,
+    _file_name: &str,
+    content: &str,
+) -> Result<(), String> {
     // ClaudeVSCode delegates to cli_sync
     if matches!(client, ExtraClient::ClaudeVSCode) {
         let cli_app = cli_sync::CliApp::Claude;
@@ -885,8 +882,13 @@ pub fn write_extra_config_content(client: &ExtraClient, _file_name: &str, conten
         )
     })?;
 
-    utils::atomic_write(&config_path, content)
-        .map_err(|e| format!("Failed to write config for {}: {}", client.display_name(), e))
+    utils::atomic_write(&config_path, content).map_err(|e| {
+        format!(
+            "Failed to write config for {}: {}",
+            client.display_name(),
+            e
+        )
+    })
 }
 
 /// Return the parent folder of the config file for a given client.
@@ -1015,10 +1017,7 @@ mod tests {
         });
 
         if let Some(arr) = config.get_mut("providers").and_then(|p| p.as_array_mut()) {
-            arr.retain(|p| {
-                p.get("id")
-                    .and_then(|v| v.as_str()) != Some(HAJIMI_MARKER)
-            });
+            arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(HAJIMI_MARKER));
             arr.push(new_provider);
         }
 

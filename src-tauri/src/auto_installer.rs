@@ -107,10 +107,16 @@ pub async fn auto_install_nodejs() -> Result<()> {
 async fn ensure_node22() -> Result<()> {
     if let Some(version) = get_node_major_version() {
         if version >= 22 {
-            tracing::info!("[auto_installer] Node.js v{} detected, meets 22+ requirement", version);
+            tracing::info!(
+                "[auto_installer] Node.js v{} detected, meets 22+ requirement",
+                version
+            );
             return Ok(());
         }
-        tracing::warn!("[auto_installer] Node.js v{} detected but OpenClaw requires 22+, upgrading...", version);
+        tracing::warn!(
+            "[auto_installer] Node.js v{} detected but OpenClaw requires 22+, upgrading...",
+            version
+        );
     } else {
         tracing::info!("[auto_installer] Node.js not found, installing v22...");
     }
@@ -119,16 +125,15 @@ async fn ensure_node22() -> Result<()> {
 
 /// Get the major version of installed Node.js, if any
 fn get_node_major_version() -> Option<u32> {
-    let output = Command::new("node")
-        .arg("--version")
-        .output()
-        .ok()?;
+    let output = Command::new("node").arg("--version").output().ok()?;
     if !output.status.success() {
         return None;
     }
     let version_str = String::from_utf8_lossy(&output.stdout);
     // Parse "v22.12.0" -> 22
-    version_str.trim().trim_start_matches('v')
+    version_str
+        .trim()
+        .trim_start_matches('v')
         .split('.')
         .next()?
         .parse::<u32>()
@@ -137,7 +142,10 @@ fn get_node_major_version() -> Option<u32> {
 
 /// 安装指定大版本的Node.js（静默）
 async fn auto_install_nodejs_version(major: &str) -> Result<()> {
-    tracing::info!("[auto_installer] Starting automatic Node.js {} installation...", major);
+    tracing::info!(
+        "[auto_installer] Starting automatic Node.js {} installation...",
+        major
+    );
 
     #[cfg(target_os = "windows")]
     {
@@ -430,7 +438,8 @@ async fn download_portable_git() -> Result<()> {
     if bytes.len() as u64 > MAX_DOWNLOAD_SIZE {
         return Err(SyncError::Other(format!(
             "Download too large: {} bytes (max {})",
-            bytes.len(), MAX_DOWNLOAD_SIZE
+            bytes.len(),
+            MAX_DOWNLOAD_SIZE
         )));
     }
 
@@ -484,16 +493,25 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<()>
 
         // SECURITY: Validate extracted path stays inside dest (Zip Slip prevention)
         let outpath = dest.join(file.name());
-        let canonical_dest = dest.canonicalize().map_err(|e| SyncError::Other(e.to_string()))?;
+        let canonical_dest = dest
+            .canonicalize()
+            .map_err(|e| SyncError::Other(e.to_string()))?;
         // For new files, canonicalize the parent (which must exist after create_dir_all)
         let check_path = if outpath.exists() {
-            outpath.canonicalize().map_err(|e| SyncError::Other(e.to_string()))?
+            outpath
+                .canonicalize()
+                .map_err(|e| SyncError::Other(e.to_string()))?
         } else if let Some(parent) = outpath.parent() {
             std::fs::create_dir_all(parent).ok();
-            let canon_parent = parent.canonicalize().map_err(|e| SyncError::Other(e.to_string()))?;
+            let canon_parent = parent
+                .canonicalize()
+                .map_err(|e| SyncError::Other(e.to_string()))?;
             canon_parent.join(outpath.file_name().unwrap_or_default())
         } else {
-            return Err(SyncError::Other(format!("Invalid zip entry path: {}", file.name())));
+            return Err(SyncError::Other(format!(
+                "Invalid zip entry path: {}",
+                file.name()
+            )));
         };
         if !check_path.starts_with(&canonical_dest) {
             return Err(SyncError::Other(format!(
@@ -611,7 +629,8 @@ async fn download_and_extract(url: &str, dest: &std::path::Path) -> Result<()> {
     if bytes.len() as u64 > MAX_DOWNLOAD_SIZE {
         return Err(SyncError::Other(format!(
             "Download too large: {} bytes (max {})",
-            bytes.len(), MAX_DOWNLOAD_SIZE
+            bytes.len(),
+            MAX_DOWNLOAD_SIZE
         )));
     }
 

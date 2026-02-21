@@ -82,10 +82,7 @@ fn normalize_base_url(input: &str) -> String {
 }
 
 /// Fetch models from proxy and build OpenClaw models array format.
-async fn fetch_models_for_openclaw(
-    base_url: &str,
-    api_key: &str,
-) -> Vec<Value> {
+async fn fetch_models_for_openclaw(base_url: &str, api_key: &str) -> Vec<Value> {
     let models_url = format!("{}/models", base_url.trim_end_matches('/'));
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -119,7 +116,13 @@ async fn fetch_models_for_openclaw(
                 let is_gemini = id.contains("gemini");
                 let is_image = id.contains("image");
 
-                let context_window: u64 = if is_claude { 200_000 } else if is_gemini { 1_048_576 } else { 128_000 };
+                let context_window: u64 = if is_claude {
+                    200_000
+                } else if is_gemini {
+                    1_048_576
+                } else {
+                    128_000
+                };
                 let max_tokens: u64 = if is_claude { 64_000 } else { 65_536 };
 
                 let mut input_modalities = vec!["text"];
@@ -147,10 +150,13 @@ async fn fetch_models_for_openclaw(
     models
 }
 
-pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<(), String> {
-    let config_path = get_config_path().ok_or_else(|| {
-        "Failed to determine OpenClaw config directory".to_string()
-    })?;
+pub async fn sync_openclaw_config(
+    proxy_url: &str,
+    api_key: &str,
+    model: Option<&str>,
+) -> Result<(), String> {
+    let config_path = get_config_path()
+        .ok_or_else(|| "Failed to determine OpenClaw config directory".to_string())?;
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
@@ -181,7 +187,10 @@ pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<
     if !config.get("models").is_some_and(|v| v.is_object()) {
         config["models"] = serde_json::json!({});
     }
-    if !config["models"].get("providers").is_some_and(|v| v.is_object()) {
+    if !config["models"]
+        .get("providers")
+        .is_some_and(|v| v.is_object())
+    {
         config["models"]["providers"] = serde_json::json!({});
     }
 
@@ -215,10 +224,16 @@ pub async fn sync_openclaw_config(proxy_url: &str, api_key: &str, model: Option<
         if !config.get("agents").is_some_and(|v| v.is_object()) {
             config["agents"] = serde_json::json!({});
         }
-        if !config["agents"].get("defaults").is_some_and(|v| v.is_object()) {
+        if !config["agents"]
+            .get("defaults")
+            .is_some_and(|v| v.is_object())
+        {
             config["agents"]["defaults"] = serde_json::json!({});
         }
-        if !config["agents"]["defaults"].get("model").is_some_and(|v| v.is_object()) {
+        if !config["agents"]["defaults"]
+            .get("model")
+            .is_some_and(|v| v.is_object())
+        {
             config["agents"]["defaults"]["model"] = serde_json::json!({});
         }
 
@@ -235,8 +250,7 @@ pub fn restore_openclaw_config() -> Result<(), String> {
     let config_path =
         get_config_path().ok_or_else(|| "Failed to get OpenClaw config directory".to_string())?;
 
-    let backup_path =
-        config_path.with_file_name(format!("{CONFIG_FILE}{BACKUP_SUFFIX}"));
+    let backup_path = config_path.with_file_name(format!("{CONFIG_FILE}{BACKUP_SUFFIX}"));
     if backup_path.exists() {
         // Atomic rename replaces the target file directly — no intermediate delete needed.
         fs::rename(&backup_path, &config_path)
@@ -260,8 +274,7 @@ pub fn read_openclaw_config_content() -> Result<String, String> {
 
 pub fn write_openclaw_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path().ok_or_else(|| "Config path not found".to_string())?;
-    serde_json::from_str::<serde_json::Value>(content)
-        .map_err(|e| format!("Invalid JSON: {e}"))?;
+    serde_json::from_str::<serde_json::Value>(content).map_err(|e| format!("Invalid JSON: {e}"))?;
     utils::atomic_write(&config_path, content).map_err(|e| e.to_string())
 }
 
@@ -272,8 +285,14 @@ mod tests {
 
     #[test]
     fn test_urls_match() {
-        assert!(urls_match("https://example.com/v1", "https://example.com/v1"));
-        assert!(urls_match("https://example.com/v1/", "https://example.com/v1"));
+        assert!(urls_match(
+            "https://example.com/v1",
+            "https://example.com/v1"
+        ));
+        assert!(urls_match(
+            "https://example.com/v1/",
+            "https://example.com/v1"
+        ));
         assert!(urls_match("https://example.com", "https://example.com/v1"));
         assert!(!urls_match("https://a.com", "https://b.com"));
     }

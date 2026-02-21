@@ -5,8 +5,8 @@ mod database;
 mod droid_sync;
 mod error;
 mod extra_clients;
-mod opencode_sync;
 mod openclaw_sync;
+mod opencode_sync;
 mod store;
 mod system_check;
 mod utils;
@@ -237,7 +237,9 @@ async fn sync_cli(
             cli_sync::sync_config(&cli_app, &proxy_url, &api_key, model.as_deref())
         }
         "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
-        "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, model.as_deref()).await,
+        "openclaw" => {
+            openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, model.as_deref()).await
+        }
         "droid" => {
             droid_sync::sync_droid_config(&proxy_url, &api_key, model.as_deref()).map(|_| ())
         }
@@ -304,7 +306,14 @@ async fn sync_all(
                 None => Err(format!("Invalid app: {app_name}")),
             },
             "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
-            "openclaw" => openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, effective_model.map(|s| s.as_str())).await,
+            "openclaw" => {
+                openclaw_sync::sync_openclaw_config(
+                    &proxy_url,
+                    &api_key,
+                    effective_model.map(|s| s.as_str()),
+                )
+                .await
+            }
             "droid" => droid_sync::sync_droid_config(
                 &proxy_url,
                 &api_key,
@@ -522,7 +531,10 @@ async fn open_external_url(url: String) -> Result<(), String> {
         || trimmed.starts_with("https://")
         || trimmed.starts_with("vscode:");
     if !allowed {
-        return Err(format!("Blocked URL scheme: {}", trimmed.chars().take(30).collect::<String>()));
+        return Err(format!(
+            "Blocked URL scheme: {}",
+            trimmed.chars().take(30).collect::<String>()
+        ));
     }
     open_path_in_system(trimmed)
 }
@@ -531,8 +543,15 @@ async fn open_external_url(url: String) -> Result<(), String> {
 async fn launch_app(name: String) -> Result<(), String> {
     // SECURITY: Only allow known application names to prevent arbitrary command execution
     const ALLOWED_APPS: &[&str] = &[
-        "Chatbox", "Cherry Studio", "Jan", "Cursor", "SillyTavern",
-        "LobeChat", "BoltAI", "Droid", "Factory",
+        "Chatbox",
+        "Cherry Studio",
+        "Jan",
+        "Cursor",
+        "SillyTavern",
+        "LobeChat",
+        "BoltAI",
+        "Droid",
+        "Factory",
     ];
     let trimmed = name.trim();
     if !ALLOWED_APPS.iter().any(|a| a.eq_ignore_ascii_case(trimmed)) {
@@ -622,12 +641,16 @@ fn open_path_in_system(path: &str) -> Result<(), String> {
 // ── Provider management commands ────────────────────────────────────────────
 
 #[tauri::command]
-async fn list_providers(state: State<'_, AppState>) -> Result<Vec<providers::ProviderRecord>, String> {
+async fn list_providers(
+    state: State<'_, AppState>,
+) -> Result<Vec<providers::ProviderRecord>, String> {
     providers::get_all(&state.db)
 }
 
 #[tauri::command]
-async fn get_current_provider(state: State<'_, AppState>) -> Result<Option<providers::ProviderRecord>, String> {
+async fn get_current_provider(
+    state: State<'_, AppState>,
+) -> Result<Option<providers::ProviderRecord>, String> {
     providers::get_current(&state.db)
 }
 
@@ -662,10 +685,7 @@ async fn reorder_providers(state: State<'_, AppState>, ids: Vec<String>) -> Resu
 }
 
 #[tauri::command]
-async fn switch_provider(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<SwitchResult, String> {
+async fn switch_provider(state: State<'_, AppState>, id: String) -> Result<SwitchResult, String> {
     // Load the target provider upfront so we fail fast if it doesn't exist.
     let target = providers::get_all(&state.db)?
         .into_iter()
@@ -729,8 +749,9 @@ async fn switch_provider(
             "openclaw" => {
                 openclaw_sync::sync_openclaw_config(&proxy_url, &target.api_key, model_ref).await
             }
-            "droid" => droid_sync::sync_droid_config(&proxy_url, &target.api_key, model_ref)
-                .map(|_| ()),
+            "droid" => {
+                droid_sync::sync_droid_config(&proxy_url, &target.api_key, model_ref).map(|_| ())
+            }
             _ => Ok(()),
         };
 
@@ -803,8 +824,9 @@ async fn switch_provider(
 /// any error so backup failures never abort a switch).
 fn read_config_snapshot(app_name: &str) -> Option<String> {
     match app_name {
-        "claude" | "codex" | "gemini" => get_cli_app(app_name)
-            .and_then(|a| cli_sync::read_config_content(&a, None).ok()),
+        "claude" | "codex" | "gemini" => {
+            get_cli_app(app_name).and_then(|a| cli_sync::read_config_content(&a, None).ok())
+        }
         "opencode" => opencode_sync::read_opencode_config_content().ok(),
         "openclaw" => openclaw_sync::read_openclaw_config_content().ok(),
         "droid" => droid_sync::read_droid_config_content().ok(),
@@ -865,15 +887,11 @@ fn recover_from_crash(db: &database::Database) {
 fn restore_from_snapshot(app_type: &str, content: &str) -> Result<(), String> {
     match app_type {
         "claude" | "codex" | "gemini" => {
-            let cli_app = get_cli_app(app_type)
-                .ok_or_else(|| format!("Unknown cli app: {app_type}"))?;
+            let cli_app =
+                get_cli_app(app_type).ok_or_else(|| format!("Unknown cli app: {app_type}"))?;
             // Use the first config file for this app.
             let files = cli_app.config_files();
-            let file_name = files
-                .first()
-                .ok_or("No config files defined")?
-                .name
-                .clone();
+            let file_name = files.first().ok_or("No config files defined")?.name.clone();
             cli_sync::write_config_content(&cli_app, &file_name, content)
         }
         "opencode" => opencode_sync::write_opencode_config_content(content),
@@ -940,9 +958,7 @@ pub fn run() {
         recover_from_crash(&db);
     }
 
-    let app_state = AppState {
-        db: Arc::new(db),
-    };
+    let app_state = AppState { db: Arc::new(db) };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())

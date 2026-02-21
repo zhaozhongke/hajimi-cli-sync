@@ -26,8 +26,7 @@ impl Database {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create DB directory: {e}"))?;
         }
-        let conn = Connection::open(path)
-            .map_err(|e| format!("Failed to open SQLite DB: {e}"))?;
+        let conn = Connection::open(path).map_err(|e| format!("Failed to open SQLite DB: {e}"))?;
         Self::configure(&conn)?;
         Self::apply_schema(&conn)?;
         Ok(Self {
