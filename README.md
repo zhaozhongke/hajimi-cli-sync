@@ -58,7 +58,35 @@ The application natively parses and updates the specific configuration files for
 - **Frontend**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/) + [Tailwind CSS v4](https://tailwindcss.com/) + [DaisyUI v5](https://daisyui.com/) + i18next
 - **Backend (Tauri)**: [Tauri v2](https://v2.tauri.app/) + [Rust](https://www.rust-lang.org/) (2021) + [Tokio](https://tokio.rs/) + `reqwest` + `toml` / `serde_json`
 
-### 📦 Installation & Development
+### 📦 Download & Install
+
+#### macOS
+Download the `.dmg` file from [Releases](https://github.com/hajimi-ai/hajimi-cli-sync/releases). Open the `.dmg` and drag the app to **Applications**.
+
+#### Windows
+Download the `.msi` or `.exe` installer from [Releases](https://github.com/hajimi-ai/hajimi-cli-sync/releases) and double-click to install.
+
+#### Linux
+Download `.deb` (Debian/Ubuntu) or `.AppImage` (universal) from [Releases](https://github.com/hajimi-ai/hajimi-cli-sync/releases).
+
+### 🛠️ Troubleshooting
+
+#### macOS: "app is damaged" or "cannot be opened"?
+
+Due to macOS security (Gatekeeper), apps downloaded outside the App Store may trigger this warning. To fix it, open Terminal and run:
+
+```bash
+sudo xattr -rd com.apple.quarantine "/Applications/哈基米AI Switch.app"
+```
+
+> **If you get `option -r not recognized`:** Your terminal is using a Python-based `xattr` (installed via conda, pip, Homebrew, etc.) instead of the macOS system version. Use the full path to the system binary:
+> ```bash
+> sudo /usr/bin/xattr -rd com.apple.quarantine "/Applications/哈基米AI Switch.app"
+> ```
+
+---
+
+### 🛠️ Development
 
 **Prerequisites**: Node.js (v18+) and Rust (latest stable).
 
@@ -134,7 +162,35 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **前端框架**：[React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/) + [Tailwind CSS v4](https://tailwindcss.com/) + [DaisyUI v5](https://daisyui.com/) + i18next
 - **后端 (Tauri)**：[Tauri v2](https://v2.tauri.app/) + [Rust](https://www.rust-lang.org/) (Edition 2021) + [Tokio](https://tokio.rs/) 异步运行时 + `reqwest` + `toml` / `serde_json` 解析器
 
-### 📦 安装与本地开发
+### 📦 下载安装
+
+#### macOS
+从 [Releases](https://github.com/hajimi-ai/hajimi-cli-sync/releases) 下载 `.dmg` 文件，打开后将应用拖入 **Applications（应用程序）** 文件夹。
+
+#### Windows
+从 [Releases](https://github.com/hajimi-ai/hajimi-cli-sync/releases) 下载 `.msi` 或 `.exe` 安装包，双击安装即可。
+
+#### Linux
+从 [Releases](https://github.com/hajimi-ai/hajimi-cli-sync/releases) 下载 `.deb`（Debian/Ubuntu）或 `.AppImage`（通用格式）安装。
+
+### 🛠️ 常见问题排查 (Troubleshooting)
+
+#### macOS 提示"应用已损坏，无法打开"？
+
+由于 macOS 的安全机制（Gatekeeper），非 App Store 下载的应用可能会触发此提示。打开终端，执行以下命令即可修复：
+
+```bash
+sudo xattr -rd com.apple.quarantine "/Applications/哈基米AI Switch.app"
+```
+
+> **如果报错 `option -r not recognized`：** 说明您的终端调用的是通过 conda、pip、Homebrew 等安装的 Python 版 `xattr`，而非 macOS 系统自带版本。请使用系统版本的完整路径：
+> ```bash
+> sudo /usr/bin/xattr -rd com.apple.quarantine "/Applications/哈基米AI Switch.app"
+> ```
+
+---
+
+### 🛠️ 本地开发
 
 **环境要求**：Node.js (v18 或更高版本) 以及 Rust (最新稳定版)。
 
