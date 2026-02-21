@@ -390,7 +390,6 @@ async fn run_silent_command_with_timeout(
 #[cfg(target_os = "windows")]
 async fn download_portable_git() -> Result<()> {
     use std::fs;
-    use std::path::PathBuf;
 
     tracing::info!("[auto_installer] Downloading portable Git...");
 
@@ -456,7 +455,7 @@ async fn download_portable_git() -> Result<()> {
     // 添加到PATH（仅本进程）
     let git_bin = git_dir.join("cmd");
     if let Ok(mut path) = std::env::var("PATH") {
-        path.push_str(";");
+        path.push(';');
         path.push_str(&git_bin.to_string_lossy());
         std::env::set_var("PATH", path);
     }
