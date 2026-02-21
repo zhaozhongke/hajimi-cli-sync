@@ -20,6 +20,7 @@ fn normalize_base_url(input: &str) -> String {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct OpencodeStatus {
     pub installed: bool,
     pub version: Option<String>,

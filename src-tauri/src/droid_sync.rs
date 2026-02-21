@@ -11,6 +11,7 @@ use crate::utils::BACKUP_SUFFIX;
 const AG_ID_PREFIX: &str = "custom:AG-";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct DroidStatus {
     pub installed: bool,
     pub version: Option<String>,

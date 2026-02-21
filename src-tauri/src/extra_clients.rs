@@ -302,14 +302,12 @@ fn is_app_installed(app_name: &str) -> bool {
         Some(PathBuf::from("/usr/share/applications")),
         Some(PathBuf::from("/usr/local/share/applications")),
     ];
-    for dir_opt in &candidates {
-        if let Some(dir) = dir_opt {
-            if let Ok(entries) = fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if name.to_lowercase().contains(&lower) {
-                            return true;
-                        }
+    for dir in candidates.iter().flatten() {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.to_lowercase().contains(&lower) {
+                        return true;
                     }
                 }
             }
