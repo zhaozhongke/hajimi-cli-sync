@@ -305,9 +305,6 @@ pub fn atomic_write(target: &PathBuf, content: &str) -> Result<()> {
 
 /// Atomically write with configurable retry count.
 pub fn atomic_write_with_retry(target: &PathBuf, content: &str, max_retries: u32) -> Result<()> {
-    #[cfg(target_os = "windows")]
-    crate::system_check::check_path_length(target)?;
-
     let tmp_path = target.with_extension("tmp");
 
     // Ensure parent directory exists
