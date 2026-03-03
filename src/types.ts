@@ -114,5 +114,6 @@ export const CLI_LIST: CliInfo[] = [
   { id: "boltai", name: "BoltAI", icon: "zap", color: "border-slate-400", installType: "manual-config", category: "chat", downloadUrl: "https://boltai.com", descKey: "toolDesc.boltai", postSyncHintKey: "toolHint.boltai", launchName: "BoltAI" },
   { id: "openclaw", name: "OpenClaw", icon: "waves", color: "border-rose-400", installType: "npm", category: "agent", downloadUrl: "https://docs.openclaw.ai", descKey: "toolDesc.openclaw", postSyncHintKey: "toolHint.openclaw" },
   { id: "sillytavern", name: "SillyTavern", icon: "beer", color: "border-yellow-400", installType: "manual", category: "rp", downloadUrl: "https://docs.sillytavern.app/installation/", descKey: "toolDesc.sillytavern", postSyncHintKey: "toolHint.sillytavern" },
+  { id: "xcode-claude", name: "Xcode Claude", icon: "apple", color: "border-gray-400", installType: "desktop", category: "coding", descKey: "toolDesc.xcodeClaude", postSyncHintKey: "toolHint.xcodeClaude", launchName: "Xcode" },
 ];
 

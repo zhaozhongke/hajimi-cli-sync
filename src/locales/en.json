@@ -78,7 +78,8 @@
     "kiloCode": "VS Code AI coding extension (Kilo fork) — community-enhanced Cline",
     "sillytavern": "Roleplay / RP chat frontend with rich character cards and scenario settings",
     "lobechat": "Open-source multi-model chat platform with plugins and knowledge base",
-    "boltai": "Native macOS AI assistant with system-level quick access"
+    "boltai": "Native macOS AI assistant with system-level quick access",
+    "xcodeClaude": "Claude AI coding agent built into Xcode — AI-powered code completion and chat in Apple's IDE"
   },
   "toolHint": {
     "claude": "After sync, the VS Code extension (Claude Code) is also configured automatically — no extra steps needed",
@@ -90,7 +91,8 @@
     "rooCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
     "kiloCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
     "lobechat": "Settings → Language Model → Add OpenAI-compatible provider → enter API URL and Key",
-    "boltai": "Settings → Models → Add Server → select OpenAI Compatible → enter URL and Key"
+    "boltai": "Settings → Models → Add Server → select OpenAI Compatible → enter URL and Key",
+    "xcodeClaude": "After sync, restart Xcode for the configuration to take effect"
   },
   "config": {
     "title": "{{name}} Config",
@@ -162,10 +164,6 @@
     "installed": "Installed",
     "manualConfig": "Manual config tools",
     "manualConfigCount": "{{count}} tools"
-  },
-  "empty": {
-    "title": "No AI tools detected",
-    "description": "Install any supported AI CLI tool (Claude, Codex, Gemini, Cursor, etc.) and it will appear here automatically."
   },
   "history": {
     "title": "Sync History",

@@ -21,6 +21,7 @@ pub enum ExtraClient {
     SillyTavern,
     LobeChat,
     BoltAI,
+    XcodeClaude,
 }
 
 impl ExtraClient {
@@ -37,6 +38,7 @@ impl ExtraClient {
             Self::SillyTavern => "sillytavern",
             Self::LobeChat => "lobechat",
             Self::BoltAI => "boltai",
+            Self::XcodeClaude => "xcode-claude",
         }
     }
 
@@ -53,6 +55,7 @@ impl ExtraClient {
             Self::SillyTavern => "SillyTavern",
             Self::LobeChat => "LobeChat",
             Self::BoltAI => "BoltAI",
+            Self::XcodeClaude => "Xcode Claude",
         }
     }
 
@@ -69,6 +72,7 @@ impl ExtraClient {
             Self::SillyTavern,
             Self::LobeChat,
             Self::BoltAI,
+            Self::XcodeClaude,
         ]
     }
 
@@ -85,6 +89,7 @@ impl ExtraClient {
             "sillytavern" => Some(Self::SillyTavern),
             "lobechat" => Some(Self::LobeChat),
             "boltai" => Some(Self::BoltAI),
+            "xcode-claude" => Some(Self::XcodeClaude),
             _ => None,
         }
     }
@@ -94,7 +99,7 @@ impl ExtraClient {
     pub fn supports_file_sync(&self) -> bool {
         matches!(
             self,
-            Self::Chatbox | Self::CherryStudio | Self::Jan | Self::SillyTavern
+            Self::Chatbox | Self::CherryStudio | Self::Jan | Self::SillyTavern | Self::XcodeClaude
         )
     }
 
@@ -109,6 +114,7 @@ impl ExtraClient {
                 vec!["(extension settings)".to_string()]
             }
             Self::SillyTavern => vec!["secrets.json".to_string()],
+            Self::XcodeClaude => vec!["settings.json".to_string()],
             Self::LobeChat => vec!["(browser storage)".to_string()],
             Self::BoltAI => vec!["(macOS Keychain)".to_string()],
         }
@@ -200,6 +206,21 @@ fn sillytavern_secrets_path() -> Option<PathBuf> {
     )
 }
 
+/// Xcode Claude Agent config directory and settings file.
+/// Only meaningful on macOS; returns `None` on other platforms.
+fn xcode_claude_config_path() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        home_dir().map(|h| {
+            h.join("Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/settings.json")
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
 /// Get the config file path for a client (the primary file we sync to).
 fn config_path_for(client: &ExtraClient) -> Option<PathBuf> {
     match client {
@@ -213,6 +234,7 @@ fn config_path_for(client: &ExtraClient) -> Option<PathBuf> {
         ExtraClient::Cursor => cursor_config_path(),
         ExtraClient::Cline | ExtraClient::RooCode | ExtraClient::KiloCode => vscode_settings_path(),
         ExtraClient::SillyTavern => sillytavern_secrets_path(),
+        ExtraClient::XcodeClaude => xcode_claude_config_path(),
         ExtraClient::LobeChat | ExtraClient::BoltAI => None,
     }
 }
@@ -463,6 +485,26 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
                 },
             )
         }
+        ExtraClient::XcodeClaude => {
+            #[cfg(target_os = "macos")]
+            {
+                let installed = is_app_installed("Xcode")
+                    || xcode_claude_config_path()
+                        .is_some_and(|p| p.parent().is_some_and(|d| d.exists()));
+                (
+                    installed,
+                    if installed {
+                        Some("detected".to_string())
+                    } else {
+                        None
+                    },
+                )
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                (false, None)
+            }
+        }
     }
 }
 
@@ -503,6 +545,7 @@ pub fn get_extra_sync_status(
         ExtraClient::CherryStudio => check_cherry_synced(&content, proxy_url, has_backup),
         ExtraClient::Jan => check_jan_synced(&content, proxy_url, has_backup),
         ExtraClient::SillyTavern => check_sillytavern_synced(&content, proxy_url, has_backup),
+        ExtraClient::XcodeClaude => check_xcode_claude_synced(&content, proxy_url, has_backup),
         ExtraClient::Cursor | ExtraClient::Cline | ExtraClient::RooCode | ExtraClient::KiloCode => {
             (false, false, None)
         }
@@ -618,6 +661,7 @@ pub fn sync_extra_config(
         ExtraClient::CherryStudio => sync_cherry(proxy_url, api_key, model),
         ExtraClient::Jan => sync_jan(proxy_url, api_key, model),
         ExtraClient::SillyTavern => sync_sillytavern(proxy_url, api_key),
+        ExtraClient::XcodeClaude => sync_xcode_claude(proxy_url, api_key, model),
         ExtraClient::Cursor => {
             Err(format!(
                 "{} AI configuration must be set through the app UI: \
@@ -775,6 +819,116 @@ fn sync_sillytavern(proxy_url: &str, api_key: &str) -> Result<(), String> {
     utils::atomic_write(&secrets_path, &content).map_err(|e| e.to_string())
 }
 
+fn sync_xcode_claude(
+    proxy_url: &str,
+    api_key: &str,
+    model: Option<&str>,
+) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (proxy_url, api_key, model);
+        return Err("Xcode Claude is only available on macOS".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let config_path = xcode_claude_config_path()
+            .ok_or("Failed to determine Xcode Claude config directory")?;
+
+        ensure_parent_dir(&config_path)?;
+        utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
+
+        // Merge into existing settings.json — preserve user env vars like
+        // NODE_EXTRA_CA_CERTS / SSL_CERT_FILE that may be needed for
+        // self-signed or internal CA certificates.
+        let mut config: Value = read_or_empty_json(&config_path);
+        if !config.is_object() {
+            config = serde_json::json!({});
+        }
+
+        let obj = config.as_object_mut().unwrap();
+        let env = obj
+            .entry("env")
+            .or_insert(serde_json::json!({}));
+        if let Some(env_obj) = env.as_object_mut() {
+            env_obj.insert(
+                "ANTHROPIC_AUTH_TOKEN".to_string(),
+                Value::String(api_key.to_string()),
+            );
+            env_obj.insert(
+                "ANTHROPIC_BASE_URL".to_string(),
+                Value::String(proxy_url.to_string()),
+            );
+        }
+
+        let content = utils::to_json_pretty(&config).map_err(|e| e.to_string())?;
+        utils::atomic_write(&config_path, &content).map_err(|e| e.to_string())?;
+
+        // Bypass Xcode authentication UI by setting a dummy API key override
+        let defaults_result = std::process::Command::new("defaults")
+            .args([
+                "write",
+                "com.apple.dt.Xcode",
+                "IDEChatClaudeAgentAPIKeyOverride",
+                " ",
+            ])
+            .output();
+
+        match defaults_result {
+            Ok(output) if !output.status.success() => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                tracing::warn!(
+                    "[xcode-claude] defaults write IDEChatClaudeAgentAPIKeyOverride failed: {}",
+                    stderr
+                );
+                // Non-fatal: config file is written, Xcode may still pick it up
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "[xcode-claude] defaults command not found or failed: {}",
+                    e
+                );
+            }
+            _ => {}
+        }
+
+        // Optionally set preferred model alias (e.g. "sonnet", "opus")
+        if let Some(m) = model {
+            let _ = std::process::Command::new("defaults")
+                .args([
+                    "write",
+                    "com.apple.dt.Xcode",
+                    "IDEChatClaudeAgentModelConfigurationAlias",
+                    m,
+                ])
+                .output();
+        }
+
+        tracing::info!("[xcode-claude] Config synced successfully");
+        Ok(())
+    }
+}
+
+fn check_xcode_claude_synced(
+    content: &str,
+    proxy_url: &str,
+    has_backup: bool,
+) -> (bool, bool, Option<String>) {
+    let json: Value = serde_json::from_str(content).unwrap_or_default();
+
+    let current_url = json
+        .get("env")
+        .and_then(|e| e.get("ANTHROPIC_BASE_URL"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let is_synced = current_url
+        .as_deref()
+        .is_some_and(|u| utils::urls_match(u, proxy_url));
+
+    (is_synced, has_backup, current_url)
+}
+
 // ---------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------
@@ -784,6 +938,27 @@ pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
     if matches!(client, ExtraClient::ClaudeVSCode) {
         let cli_app = cli_sync::CliApp::Claude;
         return cli_sync::restore_config(&cli_app);
+    }
+
+    // XcodeClaude needs extra cleanup: remove defaults keys set during sync
+    if matches!(client, ExtraClient::XcodeClaude) {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("defaults")
+                .args([
+                    "delete",
+                    "com.apple.dt.Xcode",
+                    "IDEChatClaudeAgentAPIKeyOverride",
+                ])
+                .output();
+            let _ = std::process::Command::new("defaults")
+                .args([
+                    "delete",
+                    "com.apple.dt.Xcode",
+                    "IDEChatClaudeAgentModelConfigurationAlias",
+                ])
+                .output();
+        }
     }
 
     let config_path = config_path_for(client)
@@ -1125,7 +1300,7 @@ mod tests {
 
     #[test]
     fn test_all_clients_count() {
-        assert_eq!(ExtraClient::all().len(), 11);
+        assert_eq!(ExtraClient::all().len(), 12);
     }
 
     #[test]

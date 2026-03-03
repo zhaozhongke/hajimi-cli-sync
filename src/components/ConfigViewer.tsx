@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { save, confirm } from "@tauri-apps/plugin-dialog";
+import { save, confirm as tauriConfirm } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -118,7 +118,7 @@ export function ConfigViewer({
       return;
     }
 
-    const confirmed = await confirm(
+    const confirmed = await tauriConfirm(
       t("config.saveConfirm", { file: selectedFile }),
       { title: t("config.saveTitle"), kind: "warning" }
     );

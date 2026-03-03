@@ -74,24 +74,6 @@ fn get_proxy_url(app: &str, base_url: &str) -> String {
     }
 }
 
-fn is_installed(app_name: &str) -> bool {
-    match app_name {
-        "claude" | "codex" | "gemini" => get_cli_app(app_name)
-            .map(|app| cli_sync::check_cli_installed(&app).0)
-            .unwrap_or(false),
-        "opencode" => opencode_sync::check_opencode_installed().0,
-        "openclaw" => openclaw_sync::check_openclaw_installed().0,
-        "droid" => droid_sync::check_droid_installed().0,
-        other => {
-            if let Some(client) = ExtraClient::from_str(other) {
-                extra_clients::check_extra_installed(&client).0
-            } else {
-                false
-            }
-        }
-    }
-}
-
 #[tauri::command]
 async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String> {
     // 首先检查系统环境
@@ -108,15 +90,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     for app_name in &["claude", "codex", "gemini"] {
         if let Some(app) = get_cli_app(app_name) {
             let proxy_url = get_proxy_url(app_name, &url);
-            let (installed, version) = cli_sync::check_cli_installed(&app);
-            let (is_synced, has_backup, current_base_url) = if installed {
-                cli_sync::get_sync_status(&app, &proxy_url)
-            } else {
-                (false, false, None)
-            };
+            let (_, version) = cli_sync::check_cli_installed(&app);
+            let (is_synced, has_backup, current_base_url) =
+                cli_sync::get_sync_status(&app, &proxy_url);
             results.push(CliStatusResult {
                 app: app_name.to_string(),
-                installed,
+                installed: true,
                 version,
                 is_synced,
                 has_backup,
@@ -130,15 +109,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // OpenCode
     {
         let proxy_url = get_proxy_url("opencode", &url);
-        let (installed, version) = opencode_sync::check_opencode_installed();
-        let (is_synced, has_backup, current_base_url) = if installed {
-            opencode_sync::get_sync_status(&proxy_url)
-        } else {
-            (false, false, None)
-        };
+        let (_, version) = opencode_sync::check_opencode_installed();
+        let (is_synced, has_backup, current_base_url) =
+            opencode_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "opencode".to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -151,15 +127,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // Droid
     {
         let proxy_url = get_proxy_url("droid", &url);
-        let (installed, version) = droid_sync::check_droid_installed();
-        let (is_synced, has_backup, current_base_url, synced_count) = if installed {
-            droid_sync::get_sync_status(&proxy_url)
-        } else {
-            (false, false, None, 0)
-        };
+        let (_, version) = droid_sync::check_droid_installed();
+        let (is_synced, has_backup, current_base_url, synced_count) =
+            droid_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "droid".to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -172,15 +145,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // OpenClaw
     {
         let proxy_url = get_proxy_url("openclaw", &url);
-        let (installed, version) = openclaw_sync::check_openclaw_installed();
-        let (is_synced, has_backup, current_base_url) = if installed {
-            openclaw_sync::get_sync_status(&proxy_url)
-        } else {
-            (false, false, None)
-        };
+        let (_, version) = openclaw_sync::check_openclaw_installed();
+        let (is_synced, has_backup, current_base_url) =
+            openclaw_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "openclaw".to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -190,18 +160,15 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
         });
     }
 
-    // Extra clients (Chatbox, Cherry Studio, Jan, Cursor, Cline, Roo Code, Kilo Code, SillyTavern, LobeChat, BoltAI)
+    // Extra clients
     for client in ExtraClient::all() {
         let proxy_url = get_proxy_url(client.as_str(), &url);
-        let (installed, version) = extra_clients::check_extra_installed(client);
-        let (is_synced, has_backup, current_base_url) = if installed {
-            extra_clients::get_extra_sync_status(client, &proxy_url)
-        } else {
-            (false, false, None)
-        };
+        let (_, version) = extra_clients::check_extra_installed(client);
+        let (is_synced, has_backup, current_base_url) =
+            extra_clients::get_extra_sync_status(client, &proxy_url);
         results.push(CliStatusResult {
             app: client.as_str().to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -275,20 +242,6 @@ async fn sync_all(
     for app_name in &apps {
         let proxy_url = get_proxy_url(app_name, &url);
 
-        let installed = match *app_name {
-            "claude" | "codex" | "gemini" => get_cli_app(app_name)
-                .map(|app| cli_sync::check_cli_installed(&app).0)
-                .unwrap_or(false),
-            "opencode" => opencode_sync::check_opencode_installed().0,
-            "openclaw" => openclaw_sync::check_openclaw_installed().0,
-            "droid" => droid_sync::check_droid_installed().0,
-            _ => false,
-        };
-
-        if !installed {
-            continue;
-        }
-
         // 优先使用per-cli model，fallback到全局default model
         let effective_model = cli_models
             .get(*app_name)
@@ -338,11 +291,6 @@ async fn sync_all(
 
         let app_name = client.as_str();
         let proxy_url = get_proxy_url(app_name, &url);
-        let installed = extra_clients::check_extra_installed(client).0;
-
-        if !installed {
-            continue;
-        }
 
         let effective_model = cli_models
             .get(app_name)
@@ -552,6 +500,7 @@ async fn launch_app(name: String) -> Result<(), String> {
         "BoltAI",
         "Droid",
         "Factory",
+        "Xcode",
     ];
     let trimmed = name.trim();
     if !ALLOWED_APPS.iter().any(|a| a.eq_ignore_ascii_case(trimmed)) {
@@ -721,10 +670,6 @@ async fn switch_provider(state: State<'_, AppState>, id: String) -> Result<Switc
     //   On crash between b and d the row stays, triggering recovery on next launch.
 
     for app_name in &all_apps {
-        if !is_installed(app_name) {
-            continue;
-        }
-
         let proxy_url = get_proxy_url(app_name, &target.url);
         let model = effective_model_for(app_name);
         let model_ref = model.as_deref();
@@ -777,9 +722,6 @@ async fn switch_provider(state: State<'_, AppState>, id: String) -> Result<Switc
             continue;
         }
         let app_name = client.as_str();
-        if !extra_clients::check_extra_installed(client).0 {
-            continue;
-        }
 
         let proxy_url = get_proxy_url(app_name, &target.url);
         let model = effective_model_for(app_name);

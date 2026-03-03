@@ -272,7 +272,7 @@ function App() {
     return () => window.removeEventListener("keydown", handler);
   }, [url, configViewer, confirmRestoreSingle, detectAll, toggleLang]);
 
-  const hasInstalled = statuses.some((s) => s.installed);
+  const hasInstalled = statuses.length > 0;
 
   const [activeTab, setActiveTab] = useState<CliCategory>(() =>
     (localStorage.getItem("hajimi-tab") as CliCategory) || "coding"
@@ -596,18 +596,6 @@ function App() {
           <div className={`grid ${gridCols} gap-3`}>
             {syncableClis.map(renderCliCard)}
           </div>
-
-          {/* Empty state: no tools installed in this tab */}
-          {!loading && syncableClis.length > 0 &&
-            syncableClis.every((c) => !statuses.find((s) => s.app === c.id)?.installed) &&
-            manualClis.every((c) => !statuses.find((s) => s.app === c.id)?.installed) && (
-            <div className="card glass-card shadow-sm">
-              <div className="card-body items-center text-center py-8 gap-2">
-                <p className="text-sm font-medium opacity-60">{t("empty.title")}</p>
-                <p className="text-xs opacity-40 max-w-xs">{t("empty.description")}</p>
-              </div>
-            </div>
-          )}
 
           {/* Manual-config tools — collapsible, hidden by default */}
           {manualClis.length > 0 && (
