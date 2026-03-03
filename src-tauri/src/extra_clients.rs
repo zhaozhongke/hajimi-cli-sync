@@ -819,15 +819,11 @@ fn sync_sillytavern(proxy_url: &str, api_key: &str) -> Result<(), String> {
     utils::atomic_write(&secrets_path, &content).map_err(|e| e.to_string())
 }
 
-fn sync_xcode_claude(
-    proxy_url: &str,
-    api_key: &str,
-    model: Option<&str>,
-) -> Result<(), String> {
+fn sync_xcode_claude(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     {
         let _ = (proxy_url, api_key, model);
-        return Err("Xcode Claude is only available on macOS".to_string());
+        Err("Xcode Claude is only available on macOS".to_string())
     }
 
     #[cfg(target_os = "macos")]
@@ -847,9 +843,7 @@ fn sync_xcode_claude(
         }
 
         let obj = config.as_object_mut().unwrap();
-        let env = obj
-            .entry("env")
-            .or_insert(serde_json::json!({}));
+        let env = obj.entry("env").or_insert(serde_json::json!({}));
         if let Some(env_obj) = env.as_object_mut() {
             env_obj.insert(
                 "ANTHROPIC_AUTH_TOKEN".to_string(),
@@ -884,10 +878,7 @@ fn sync_xcode_claude(
                 // Non-fatal: config file is written, Xcode may still pick it up
             }
             Err(e) => {
-                tracing::warn!(
-                    "[xcode-claude] defaults command not found or failed: {}",
-                    e
-                );
+                tracing::warn!("[xcode-claude] defaults command not found or failed: {}", e);
             }
             _ => {}
         }

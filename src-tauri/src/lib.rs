@@ -110,8 +110,7 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     {
         let proxy_url = get_proxy_url("opencode", &url);
         let (_, version) = opencode_sync::check_opencode_installed();
-        let (is_synced, has_backup, current_base_url) =
-            opencode_sync::get_sync_status(&proxy_url);
+        let (is_synced, has_backup, current_base_url) = opencode_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "opencode".to_string(),
             installed: true,
@@ -146,8 +145,7 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     {
         let proxy_url = get_proxy_url("openclaw", &url);
         let (_, version) = openclaw_sync::check_openclaw_installed();
-        let (is_synced, has_backup, current_base_url) =
-            openclaw_sync::get_sync_status(&proxy_url);
+        let (is_synced, has_backup, current_base_url) = openclaw_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "openclaw".to_string(),
             installed: true,
