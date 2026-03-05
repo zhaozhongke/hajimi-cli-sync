@@ -3,6 +3,7 @@ use crate::database::{lock_conn, Database};
 /// Save the **actual config file content** before overwriting it.
 /// Called once per app-type before sync starts. Uses INSERT OR IGNORE so the
 /// *first* backup (the pre-switch original) is never overwritten by a retry.
+#[allow(dead_code)]
 pub fn save_backup(db: &Database, app_type: &str, content: &str) -> Result<(), String> {
     let conn = lock_conn!(db.conn);
     let now = chrono::Utc::now().to_rfc3339();

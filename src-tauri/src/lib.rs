@@ -649,20 +649,6 @@ async fn switch_provider(state: State<'_, AppState>, id: String) -> Result<Switc
     })
 }
 
-/// Read the primary config snapshot for an app (best-effort, returns None on
-/// any error so backup failures never abort a switch).
-fn read_config_snapshot(app_name: &str) -> Option<String> {
-    match app_name {
-        "claude" | "codex" | "gemini" => {
-            get_cli_app(app_name).and_then(|a| cli_sync::read_config_content(&a, None).ok())
-        }
-        "opencode" => opencode_sync::read_opencode_config_content().ok(),
-        "openclaw" => openclaw_sync::read_openclaw_config_content().ok(),
-        "droid" => droid_sync::read_droid_config_content().ok(),
-        _ => None,
-    }
-}
-
 /// Crash recovery: called at startup when config_backup rows are found.
 ///
 /// Strategy per app:
