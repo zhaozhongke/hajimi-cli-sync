@@ -633,130 +633,19 @@ async fn reorder_providers(state: State<'_, AppState>, ids: Vec<String>) -> Resu
 
 #[tauri::command]
 async fn switch_provider(state: State<'_, AppState>, id: String) -> Result<SwitchResult, String> {
-    // Load the target provider upfront so we fail fast if it doesn't exist.
-    let target = providers::get_all(&state.db)?
+    // Validate that the provider exists before switching.
+    let _target = providers::get_all(&state.db)?
         .into_iter()
         .find(|p| p.id == id)
         .ok_or_else(|| format!("Provider not found: {id}"))?;
 
-    let per_cli: std::collections::HashMap<String, String> =
-        serde_json::from_str(&target.per_cli_models).unwrap_or_default();
-
-    let effective_model_for = |app_name: &str| -> Option<String> {
-        per_cli
-            .get(app_name)
-            .filter(|m| !m.is_empty())
-            .cloned()
-            .or_else(|| {
-                if target.default_model.is_empty() {
-                    None
-                } else {
-                    Some(target.default_model.clone())
-                }
-            })
-    };
-
-    let all_apps = ["claude", "codex", "gemini", "opencode", "openclaw", "droid"];
-    let mut errors: Vec<SyncResult> = Vec::new();
-
-    // ── Phase 1: read-then-backup existing config content, then sync ─────────
-    // For each installed app we:
-    //   a) Read the current config content from disk.
-    //   b) Persist it to config_backup (INSERT OR IGNORE — never clobbers).
-    //   c) Sync the new provider config.
-    //   d) On success: delete that app's backup row.
-    //   On crash between b and d the row stays, triggering recovery on next launch.
-
-    for app_name in &all_apps {
-        let proxy_url = get_proxy_url(app_name, &target.url);
-        let model = effective_model_for(app_name);
-        let model_ref = model.as_deref();
-
-        // a+b) Read current config and persist to DB before we touch the file.
-        let snapshot = read_config_snapshot(app_name);
-        if let Some(content) = snapshot {
-            if let Err(e) = backup::save_backup(&state.db, app_name, &content) {
-                tracing::warn!("[switch] backup write failed for {}: {}", app_name, e);
-            }
-        }
-
-        // c) Sync.
-        let result: Result<(), String> = match *app_name {
-            "claude" | "codex" | "gemini" => match get_cli_app(app_name) {
-                Some(cli_app) => {
-                    cli_sync::sync_config(&cli_app, &proxy_url, &target.api_key, model_ref)
-                }
-                None => Err(format!("Invalid app: {app_name}")),
-            },
-            "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &target.api_key).await,
-            "openclaw" => {
-                openclaw_sync::sync_openclaw_config(&proxy_url, &target.api_key, model_ref).await
-            }
-            "droid" => {
-                droid_sync::sync_droid_config(&proxy_url, &target.api_key, model_ref).map(|_| ())
-            }
-            _ => Ok(()),
-        };
-
-        // d) Clean up backup on success; keep it on failure (crash-safe).
-        match result {
-            Ok(()) => {
-                let _ = backup::delete_backup(&state.db, app_name);
-            }
-            Err(e) => {
-                tracing::error!("[switch] sync failed for {}: {}", app_name, e);
-                errors.push(SyncResult {
-                    app: app_name.to_string(),
-                    success: false,
-                    error: Some(e),
-                });
-            }
-        }
-    }
-
-    // ── Extra clients (file-sync capable only) ────────────────────────────────
-    for client in ExtraClient::all() {
-        if !client.supports_file_sync() {
-            continue;
-        }
-        let app_name = client.as_str();
-
-        let proxy_url = get_proxy_url(app_name, &target.url);
-        let model = effective_model_for(app_name);
-        let model_ref = model.as_deref();
-
-        if let Ok(content) = extra_clients::read_extra_config_content(client) {
-            if let Err(e) = backup::save_backup(&state.db, app_name, &content) {
-                tracing::warn!("[switch] backup write failed for {}: {}", app_name, e);
-            }
-        }
-
-        let result =
-            extra_clients::sync_extra_config(client, &proxy_url, &target.api_key, model_ref);
-
-        match result {
-            Ok(()) => {
-                let _ = backup::delete_backup(&state.db, app_name);
-            }
-            Err(e) => {
-                tracing::error!("[switch] sync failed for {}: {}", app_name, e);
-                errors.push(SyncResult {
-                    app: app_name.to_string(),
-                    success: false,
-                    error: Some(e),
-                });
-            }
-        }
-    }
-
-    // ── Phase 2: commit new current provider ──────────────────────────────────
-    // This runs regardless of individual sync errors so the UI always reflects
-    // which provider was targeted.  Partial failures are surfaced in `errors`.
+    // Only update the current provider in DB — do NOT auto-sync CLI clients.
+    // Users can manually sync via "Sync All" or per-CLI sync buttons.
     providers::set_current(&state.db, &id)?;
 
     Ok(SwitchResult {
-        success: errors.is_empty(),
-        errors,
+        success: true,
+        errors: vec![],
     })
 }
 
