@@ -177,6 +177,43 @@ jobs:
         with:
           draft: true
           generate_release_notes: true
+          body: |
+            ## Installation / 安装说明
+
+            ### macOS
+            1. Download the `.dmg` file for your architecture:
+               - **Apple Silicon (M1/M2/M3/M4)**: `*_aarch64.dmg`
+               - **Intel**: `*_x64.dmg`
+            2. Open the `.dmg` file and drag **哈基米AI Switch** to the **Applications** folder
+            3. If macOS shows "damaged" warning, run:
+               ```bash
+               xattr -cr "/Applications/哈基米AI Switch.app"
+               ```
+
+            Or install via command line:
+            ```bash
+            hdiutil attach hajimi-ai-switch_*.dmg
+            cp -R "/Volumes/Hajimi Switch/哈基米AI Switch.app" /Applications/
+            hdiutil detach "/Volumes/Hajimi Switch"
+            ```
+
+            ### Windows
+            1. Download the `.msi` installer
+            2. Double-click to install and follow the setup wizard
+
+            ### Linux
+            **Debian/Ubuntu** (`.deb`):
+            ```bash
+            sudo dpkg -i hajimi-ai-switch_*.deb
+            ```
+
+            **AppImage**:
+            ```bash
+            chmod +x hajimi-ai-switch_*.AppImage
+            ./hajimi-ai-switch_*.AppImage
+            ```
+
+            ---
           files: |
             artifacts/**/*.msi
             artifacts/**/*.exe
