@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::cli_sync;
+use crate::openclaw_sync;
 use crate::utils;
 
 use crate::utils::BACKUP_SUFFIX;
@@ -22,6 +23,7 @@ pub enum ExtraClient {
     LobeChat,
     BoltAI,
     XcodeClaude,
+    ClawX,
 }
 
 impl ExtraClient {
@@ -39,6 +41,7 @@ impl ExtraClient {
             Self::LobeChat => "lobechat",
             Self::BoltAI => "boltai",
             Self::XcodeClaude => "xcode-claude",
+            Self::ClawX => "clawx",
         }
     }
 
@@ -56,6 +59,7 @@ impl ExtraClient {
             Self::LobeChat => "LobeChat",
             Self::BoltAI => "BoltAI",
             Self::XcodeClaude => "Xcode Claude",
+            Self::ClawX => "ClawX",
         }
     }
 
@@ -73,6 +77,7 @@ impl ExtraClient {
             Self::LobeChat,
             Self::BoltAI,
             Self::XcodeClaude,
+            Self::ClawX,
         ]
     }
 
@@ -90,6 +95,7 @@ impl ExtraClient {
             "lobechat" => Some(Self::LobeChat),
             "boltai" => Some(Self::BoltAI),
             "xcode-claude" => Some(Self::XcodeClaude),
+            "clawx" => Some(Self::ClawX),
             _ => None,
         }
     }
@@ -117,6 +123,7 @@ impl ExtraClient {
             Self::XcodeClaude => vec!["settings.json".to_string()],
             Self::LobeChat => vec!["(browser storage)".to_string()],
             Self::BoltAI => vec!["(macOS Keychain)".to_string()],
+            Self::ClawX => vec!["openclaw.json".to_string()],
         }
     }
 }
@@ -236,6 +243,7 @@ fn config_path_for(client: &ExtraClient) -> Option<PathBuf> {
         ExtraClient::SillyTavern => sillytavern_secrets_path(),
         ExtraClient::XcodeClaude => xcode_claude_config_path(),
         ExtraClient::LobeChat | ExtraClient::BoltAI => None,
+        ExtraClient::ClawX => home_dir().map(|h| h.join(".openclaw").join("openclaw.json")),
     }
 }
 
@@ -505,6 +513,18 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
                 (false, None)
             }
         }
+        ExtraClient::ClawX => {
+            let installed =
+                is_app_installed("ClawX") || home_dir().is_some_and(|h| h.join(".clawx").exists());
+            (
+                installed,
+                if installed {
+                    Some("detected".to_string())
+                } else {
+                    None
+                },
+            )
+        }
     }
 }
 
@@ -548,6 +568,10 @@ pub fn get_extra_sync_status(
         ExtraClient::XcodeClaude => check_xcode_claude_synced(&content, proxy_url, has_backup),
         ExtraClient::Cursor | ExtraClient::Cline | ExtraClient::RooCode | ExtraClient::KiloCode => {
             (false, false, None)
+        }
+        ExtraClient::ClawX => {
+            // ClawX shares config with OpenClaw
+            openclaw_sync::get_sync_status(proxy_url)
         }
         _ => (false, false, None),
     }
@@ -690,6 +714,11 @@ pub fn sync_extra_config(
                  Configure it through the app: Settings > Models > Add OpenAI-compatible Server.",
                 client.display_name()
             ))
+        }
+        ExtraClient::ClawX => {
+            Err("ClawX shares config with OpenClaw. Use the OpenClaw sync instead, \
+                 or sync ClawX directly from the main sync button."
+                .to_string())
         }
     }
 }
@@ -931,6 +960,11 @@ pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
         return cli_sync::restore_config(&cli_app);
     }
 
+    // ClawX shares config with OpenClaw — delegate to openclaw_sync
+    if matches!(client, ExtraClient::ClawX) {
+        return openclaw_sync::restore_openclaw_config();
+    }
+
     // XcodeClaude needs extra cleanup: remove defaults keys set during sync
     if matches!(client, ExtraClient::XcodeClaude) {
         #[cfg(target_os = "macos")]
@@ -980,6 +1014,11 @@ pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 pub fn read_extra_config_content(client: &ExtraClient) -> Result<String, String> {
+    // ClawX shares config with OpenClaw
+    if matches!(client, ExtraClient::ClawX) {
+        return openclaw_sync::read_openclaw_config_content();
+    }
+
     let config_path = config_path_for(client).ok_or_else(|| {
         format!(
             "{} does not use a readable config file",
@@ -1039,6 +1078,11 @@ pub fn write_extra_config_content(
             .map(|f| f.name.as_str())
             .unwrap_or("settings.json");
         return cli_sync::write_config_content(&cli_app, name, content);
+    }
+
+    // ClawX delegates to openclaw_sync
+    if matches!(client, ExtraClient::ClawX) {
+        return openclaw_sync::write_openclaw_config_content(content);
     }
 
     let config_path = config_path_for(client).ok_or_else(|| {
@@ -1291,7 +1335,7 @@ mod tests {
 
     #[test]
     fn test_all_clients_count() {
-        assert_eq!(ExtraClient::all().len(), 12);
+        assert_eq!(ExtraClient::all().len(), 13);
     }
 
     #[test]

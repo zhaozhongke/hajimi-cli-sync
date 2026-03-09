@@ -79,7 +79,8 @@
     "sillytavern": "角色扮演 / RP 对话前端，支持丰富的角色卡和场景设定",
     "lobechat": "开源多模型对话平台，支持插件和知识库",
     "boltai": "macOS 原生 AI 助手，系统级快捷调用",
-    "xcodeClaude": "Xcode 内置 Claude AI 编程助手，在 Apple IDE 中使用 AI 补全和对话"
+    "xcodeClaude": "Xcode 内置 Claude AI 编程助手，在 Apple IDE 中使用 AI 补全和对话",
+    "clawx": "OpenClaw 桌面客户端，图形化管理 AI 智能体和多平台消息"
   },
   "toolHint": {
     "claude": "同步后 VS Code 插件（Claude Code extension）也会自动生效，无需额外配置",
@@ -92,7 +93,8 @@
     "kiloCode": "扩展侧边栏 → 设置 → API Provider 选 \"OpenAI Compatible\" → 填入 Base URL 和 API Key",
     "lobechat": "设置 → 语言模型 → 添加 OpenAI 兼容服务商 → 填入 API 地址和密钥",
     "boltai": "Settings → Models → Add Server → 选择 OpenAI Compatible → 填入地址和密钥",
-    "xcodeClaude": "同步完成后，需重启 Xcode 才能生效"
+    "xcodeClaude": "同步完成后，需重启 Xcode 才能生效",
+    "clawx": "ClawX 与 OpenClaw 共享配置，同步后 ClawX 中的 AI 提供商也会自动更新"
   },
   "config": {
     "title": "{{name}} 配置",
@@ -157,7 +159,7 @@
   "category": {
     "coding": "编程开发",
     "chat": "AI 对话",
-    "agent": "多平台助手",
+    "agent": "龙虾",
     "rp": "角色扮演"
   },
   "section": {
@@ -200,6 +202,25 @@
     "showKey": "显示",
     "hideKey": "隐藏",
     "migratedDefault": "默认套餐"
+  },
+  "welcome": {
+    "title": "欢迎使用哈基米AI Switch",
+    "subtitle": "一键将 API 代理配置同步到本地 AI 工具",
+    "getStarted": "开始设置",
+    "skip": "跳过，稍后设置",
+    "configTitle": "配置你的 API",
+    "urlLabel": "API 地址",
+    "apiKeyLabel": "API 密钥",
+    "providerNameLabel": "套餐名称（可选）",
+    "providerNameDefault": "默认套餐",
+    "testConnection": "测试连接",
+    "testSuccess": "连接成功！",
+    "testFailed": "连接失败，请检查地址和密钥",
+    "next": "下一步",
+    "doneTitle": "设置完成！",
+    "doneSubtitle": "你的套餐已保存，现在可以同步 AI 工具了",
+    "enterApp": "进入应用",
+    "syncHint": "点击这里一键同步所有工具"
   },
   "purchase": {
     "title": "没有套餐？闲鱼低价购买 →",

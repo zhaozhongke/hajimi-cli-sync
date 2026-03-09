@@ -202,7 +202,7 @@ async fn sync_cli(
             cli_sync::sync_config(&cli_app, &proxy_url, &api_key, model.as_deref())
         }
         "opencode" => opencode_sync::sync_opencode_config(&proxy_url, &api_key).await,
-        "openclaw" => {
+        "openclaw" | "clawx" => {
             openclaw_sync::sync_openclaw_config(&proxy_url, &api_key, model.as_deref()).await
         }
         "droid" => {
@@ -499,6 +499,7 @@ async fn launch_app(name: String) -> Result<(), String> {
         "Droid",
         "Factory",
         "Xcode",
+        "ClawX",
     ];
     let trimmed = name.trim();
     if !ALLOWED_APPS.iter().any(|a| a.eq_ignore_ascii_case(trimmed)) {

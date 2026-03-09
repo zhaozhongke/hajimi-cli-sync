@@ -175,7 +175,9 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          draft: true
+          name: 哈基米AI Switch ${{ github.ref_name }}
+          draft: false
+          make_latest: true
           generate_release_notes: true
           body: |
             ## Installation / 安装说明
@@ -192,7 +194,8 @@ jobs:
 
             Or install via command line:
             ```bash
-            hdiutil attach hajimi-ai-switch_*.dmg
+            DMG_FILE=$(ls *.dmg | head -n 1)
+            hdiutil attach "$DMG_FILE"
             cp -R "/Volumes/Hajimi Switch/哈基米AI Switch.app" /Applications/
             hdiutil detach "/Volumes/Hajimi Switch"
             ```
@@ -204,13 +207,15 @@ jobs:
             ### Linux
             **Debian/Ubuntu** (`.deb`):
             ```bash
-            sudo dpkg -i hajimi-ai-switch_*.deb
+            DEB_FILE=$(ls *.deb | head -n 1)
+            sudo dpkg -i "$DEB_FILE"
             ```
 
             **AppImage**:
             ```bash
-            chmod +x hajimi-ai-switch_*.AppImage
-            ./hajimi-ai-switch_*.AppImage
+            APPIMAGE_FILE=$(ls *.AppImage | head -n 1)
+            chmod +x "$APPIMAGE_FILE"
+            "./$APPIMAGE_FILE"
             ```
 
             ---

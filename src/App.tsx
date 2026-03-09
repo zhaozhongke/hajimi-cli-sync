@@ -8,6 +8,7 @@ import { Check, ExternalLink, Sun, Moon, RefreshCw } from "lucide-react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { CliCard } from "./components/CliCard";
 import { ConfigViewer } from "./components/ConfigViewer";
+import { WelcomeModal } from "./components/WelcomeModal";
 import { ProviderPanel } from "./components/ProviderPanel";
 import { useCliSync, getSyncLog } from "./hooks/useCliSync";
 import type { SyncLogEntry } from "./hooks/useCliSync";
@@ -113,6 +114,7 @@ function App() {
           const lsModel = localStorage.getItem("hajimi-model") || DEFAULT_MODEL;
           const lsCliModels = localStorage.getItem("hajimi-cli-models") || "{}";
           if (lsUrl && lsKey) {
+            // Returning user with localStorage credentials — migrate silently
             const migrated: ProviderRecord = {
               id: crypto.randomUUID(),
               name: t("provider.migratedDefault"),
@@ -130,6 +132,10 @@ function App() {
               await switchProvider(migrated.id);
             } catch { /* non-fatal */ }
             await reloadProviders();
+            localStorage.setItem("hajimi-onboarding-done", "true");
+          } else if (!localStorage.getItem("hajimi-onboarding-done")) {
+            // Brand new user — show welcome wizard
+            setShowWelcome(true);
           }
         }
       } finally {
@@ -138,6 +144,50 @@ function App() {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Welcome modal + sync hint ───────────────────────────────────────────────
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showSyncHint, setShowSyncHint] = useState(false);
+
+  const handleWelcomeComplete = useCallback(
+    async (wizUrl: string, wizKey: string, wizName: string) => {
+      const newProvider: ProviderRecord = {
+        id: crypto.randomUUID(),
+        name: wizName,
+        url: wizUrl,
+        api_key: wizKey,
+        default_model: DEFAULT_MODEL,
+        per_cli_models: "{}",
+        is_current: false,
+        sort_index: null,
+        notes: null,
+        created_at: Math.floor(Date.now() / 1000),
+      };
+      try {
+        await saveProvider(newProvider);
+        await switchProvider(newProvider.id);
+        await reloadProviders();
+      } catch (e) {
+        toast.error(String(e), { duration: 5000 });
+      }
+      localStorage.setItem("hajimi-onboarding-done", "true");
+      setShowWelcome(false);
+      setShowSyncHint(true);
+    },
+    [reloadProviders]
+  );
+
+  const handleWelcomeSkip = useCallback(() => {
+    localStorage.setItem("hajimi-onboarding-done", "true");
+    setShowWelcome(false);
+  }, []);
+
+  // Auto-dismiss sync hint after 6 seconds
+  useEffect(() => {
+    if (!showSyncHint) return;
+    const timer = setTimeout(() => setShowSyncHint(false), 6000);
+    return () => clearTimeout(timer);
+  }, [showSyncHint]);
 
   const [configViewer, setConfigViewer] = useState<{
     cli: CliInfo;
@@ -550,14 +600,16 @@ function App() {
             </div>
             {/* Sync All — primary CTA when tools are installed but not all synced */}
             {hasInstalled && (
+              <div className="relative">
               <button
                 className={`btn btn-sm shrink-0 gap-1.5 ${
                   syncedCount === installedCount
                     ? "btn-success btn-outline"
                     : "btn-primary"
-                }`}
+                } ${showSyncHint ? "animate-pulse ring-2 ring-primary" : ""}`}
                 onClick={() => {
                   if (!apiKey) { toast.error(t("toast.apiKeyRequired")); return; }
+                  setShowSyncHint(false);
                   syncAll(url, apiKey, defaultModel, perCliModels);
                 }}
                 disabled={loading || Object.values(syncing).some(Boolean) || isSwitching || !url.trim() || !apiKey.trim()}
@@ -570,6 +622,13 @@ function App() {
                   : null}
                 {t("settings.syncAll")}
               </button>
+              {showSyncHint && (
+                <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap bg-primary text-primary-content text-xs px-3 py-1.5 rounded-lg shadow-lg z-50 animate-bounce">
+                  {t("welcome.syncHint")}
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rotate-45" />
+                </div>
+              )}
+              </div>
             )}
             <button
               className="btn btn-ghost btn-sm btn-square opacity-50 hover:opacity-100 transition-opacity shrink-0"
@@ -700,6 +759,15 @@ function App() {
           </div>
           <div className="modal-backdrop" onClick={() => setConfirmRestoreSingle(null)} />
         </div>
+      )}
+
+      {/* Welcome modal for first-time users */}
+      {showWelcome && (
+        <WelcomeModal
+          defaultUrl={DEFAULT_URL}
+          onComplete={handleWelcomeComplete}
+          onSkip={handleWelcomeSkip}
+        />
       )}
 
       {/* Toast notifications — success 2.5s, errors 5s */}

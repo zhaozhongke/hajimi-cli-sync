@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   Terminal, Code, Sparkles, FileCode, Bot, MousePointer,
   MessageSquare, Cherry, Cpu, FileText, Rabbit, Ruler,
-  Beer, Brain, Zap, Waves, Check, CircleDot, Info, ExternalLink,
+  Beer, Brain, Zap, Waves, Shell, Check, CircleDot, Info, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import type { CliInfo, CliStatusResult } from "../types";
@@ -25,6 +25,7 @@ const iconMap: Record<string, LucideIcon> = {
   brain: Brain,
   zap: Zap,
   waves: Waves,
+  shell: Shell,
 };
 
 function CliIcon({ name, className }: { name: string; className?: string }) {

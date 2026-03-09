@@ -97,11 +97,11 @@ export interface ApiTokenInfo {
 export type AuthMode = "manual" | "account";
 
 export const CLI_LIST: CliInfo[] = [
-  { id: "claude", name: "Claude Code", icon: "terminal", color: "border-purple-400", installType: "npm", category: "coding", descKey: "toolDesc.claude", postSyncHintKey: "toolHint.claude" },
+  { id: "claude", name: "Claude Code", icon: "terminal", color: "border-purple-400", installType: "npm", category: "coding", downloadUrl: "https://docs.anthropic.com/en/docs/claude-code/overview", descKey: "toolDesc.claude", postSyncHintKey: "toolHint.claude" },
   { id: "claude-vscode", name: "Claude Code (VS Code)", icon: "file-code", color: "border-purple-300", installType: "vscode", category: "coding", descKey: "toolDesc.claudeVscode", communityUrl: "https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code" },
   { id: "opencode", name: "OpenCode", icon: "file-code", color: "border-orange-400", installType: "manual", category: "coding", downloadUrl: "https://github.com/anomalyco/opencode", descKey: "toolDesc.opencode" },
-  { id: "codex", name: "Codex AI", icon: "code", color: "border-blue-400", installType: "npm", category: "coding", descKey: "toolDesc.codex" },
-  { id: "gemini", name: "Gemini CLI", icon: "sparkles", color: "border-green-400", installType: "npm", category: "coding", descKey: "toolDesc.gemini" },
+  { id: "codex", name: "Codex AI", icon: "code", color: "border-blue-400", installType: "npm", category: "coding", downloadUrl: "https://github.com/openai/codex", descKey: "toolDesc.codex" },
+  { id: "gemini", name: "Gemini CLI", icon: "sparkles", color: "border-green-400", installType: "npm", category: "coding", downloadUrl: "https://github.com/google-gemini/gemini-cli", descKey: "toolDesc.gemini" },
   { id: "droid", name: "Droid", icon: "bot", color: "border-red-400", installType: "desktop", category: "coding", downloadUrl: "https://factory.ai", descKey: "toolDesc.droid", launchName: "Droid" },
   { id: "cline", name: "Cline", icon: "file-text", color: "border-teal-400", installType: "manual-config", category: "coding", downloadUrl: "vscode:extension/saoudrizwan.claude-dev", descKey: "toolDesc.cline", postSyncHintKey: "toolHint.cline", communityUrl: "https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev" },
   { id: "roo-code", name: "Roo Code", icon: "rabbit", color: "border-amber-400", installType: "manual-config", category: "coding", downloadUrl: "vscode:extension/rooveterinaryinc.roo-cline", descKey: "toolDesc.rooCode", postSyncHintKey: "toolHint.rooCode", communityUrl: "https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline" },
@@ -114,6 +114,7 @@ export const CLI_LIST: CliInfo[] = [
   { id: "boltai", name: "BoltAI", icon: "zap", color: "border-slate-400", installType: "manual-config", category: "chat", downloadUrl: "https://boltai.com", descKey: "toolDesc.boltai", postSyncHintKey: "toolHint.boltai", launchName: "BoltAI" },
   { id: "openclaw", name: "OpenClaw", icon: "waves", color: "border-rose-400", installType: "npm", category: "agent", downloadUrl: "https://docs.openclaw.ai", descKey: "toolDesc.openclaw", postSyncHintKey: "toolHint.openclaw" },
   { id: "sillytavern", name: "SillyTavern", icon: "beer", color: "border-yellow-400", installType: "manual", category: "rp", downloadUrl: "https://docs.sillytavern.app/installation/", descKey: "toolDesc.sillytavern", postSyncHintKey: "toolHint.sillytavern" },
-  { id: "xcode-claude", name: "Xcode Claude", icon: "apple", color: "border-gray-400", installType: "desktop", category: "coding", descKey: "toolDesc.xcodeClaude", postSyncHintKey: "toolHint.xcodeClaude", launchName: "Xcode" },
+  { id: "xcode-claude", name: "Xcode Claude", icon: "apple", color: "border-gray-400", installType: "desktop", category: "coding", downloadUrl: "https://developer.apple.com/xcode/", descKey: "toolDesc.xcodeClaude", postSyncHintKey: "toolHint.xcodeClaude", launchName: "Xcode" },
+  { id: "clawx", name: "ClawX", icon: "shell", color: "border-red-500", installType: "desktop", category: "agent", downloadUrl: "https://claw-x.com", descKey: "toolDesc.clawx", postSyncHintKey: "toolHint.clawx", launchName: "ClawX" },
 ];
 

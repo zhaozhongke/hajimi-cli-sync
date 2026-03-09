@@ -79,7 +79,8 @@
     "sillytavern": "Roleplay / RP chat frontend with rich character cards and scenario settings",
     "lobechat": "Open-source multi-model chat platform with plugins and knowledge base",
     "boltai": "Native macOS AI assistant with system-level quick access",
-    "xcodeClaude": "Claude AI coding agent built into Xcode — AI-powered code completion and chat in Apple's IDE"
+    "xcodeClaude": "Claude AI coding agent built into Xcode — AI-powered code completion and chat in Apple's IDE",
+    "clawx": "OpenClaw desktop client — manage AI agents and multi-platform messaging with a GUI"
   },
   "toolHint": {
     "claude": "After sync, the VS Code extension (Claude Code) is also configured automatically — no extra steps needed",
@@ -92,7 +93,8 @@
     "kiloCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
     "lobechat": "Settings → Language Model → Add OpenAI-compatible provider → enter API URL and Key",
     "boltai": "Settings → Models → Add Server → select OpenAI Compatible → enter URL and Key",
-    "xcodeClaude": "After sync, restart Xcode for the configuration to take effect"
+    "xcodeClaude": "After sync, restart Xcode for the configuration to take effect",
+    "clawx": "ClawX shares config with OpenClaw — after sync, ClawX providers are updated automatically"
   },
   "config": {
     "title": "{{name}} Config",
@@ -157,7 +159,7 @@
   "category": {
     "coding": "Coding",
     "chat": "AI Chat",
-    "agent": "Agents",
+    "agent": "Claw",
     "rp": "Roleplay"
   },
   "section": {
@@ -200,6 +202,25 @@
     "showKey": "Show",
     "hideKey": "Hide",
     "migratedDefault": "Default Provider"
+  },
+  "welcome": {
+    "title": "Welcome to Hajimi AI Switch",
+    "subtitle": "Sync your API proxy config to local AI tools in one click",
+    "getStarted": "Get Started",
+    "skip": "Skip, set up later",
+    "configTitle": "Configure Your API",
+    "urlLabel": "API URL",
+    "apiKeyLabel": "API Key",
+    "providerNameLabel": "Provider name (optional)",
+    "providerNameDefault": "Default Provider",
+    "testConnection": "Test Connection",
+    "testSuccess": "Connection successful!",
+    "testFailed": "Connection failed — check URL and key",
+    "next": "Next",
+    "doneTitle": "All Set!",
+    "doneSubtitle": "Your provider is saved — now sync your AI tools",
+    "enterApp": "Enter App",
+    "syncHint": "Click here to sync all tools at once"
   },
   "purchase": {
     "title": "No plan yet? Buy on Xianyu →",
