@@ -5,7 +5,7 @@ import { Check, Eye, EyeOff } from "lucide-react";
 
 interface WelcomeModalProps {
   defaultUrl: string;
-  onComplete: (url: string, apiKey: string, providerName: string) => void;
+  onComplete: (url: string, apiKey: string, providerName: string) => Promise<boolean>;
   onSkip: () => void;
 }
 
@@ -17,19 +17,45 @@ export function WelcomeModal({ defaultUrl, onComplete, onSkip }: WelcomeModalPro
   const [providerName, setProviderName] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+  const [testError, setTestError] = useState("");
+
+  const handleUrlChange = (value: string) => {
+    setUrl(value);
+    setTestResult(null);
+    setTestError("");
+  };
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    setTestResult(null);
+    setTestError("");
+  };
 
   const handleTestConnection = async () => {
     if (!url.trim() || !apiKey.trim()) return;
     setTesting(true);
     setTestResult(null);
+    setTestError("");
     try {
       await invoke("test_connection", { url, apiKey });
       setTestResult("success");
-    } catch {
+    } catch (error) {
       setTestResult("error");
+      setTestError(error instanceof Error ? error.message : String(error));
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleFinish = async () => {
+    if (testResult !== "success") return;
+    setSaving(true);
+    try {
+      await onComplete(url, apiKey, providerName.trim() || t("welcome.providerNameDefault"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -116,7 +142,7 @@ export function WelcomeModal({ defaultUrl, onComplete, onSkip }: WelcomeModalPro
                 type="text"
                 className="input input-bordered input-sm w-full"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder="https://..."
               />
             </div>
@@ -130,7 +156,7 @@ export function WelcomeModal({ defaultUrl, onComplete, onSkip }: WelcomeModalPro
                   type={showKey ? "text" : "password"}
                   className="input input-bordered input-sm w-full pr-10"
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
                   placeholder="sk-..."
                 />
                 <button
@@ -175,9 +201,14 @@ export function WelcomeModal({ defaultUrl, onComplete, onSkip }: WelcomeModalPro
                 </span>
               )}
               {testResult === "error" && (
-                <span className="text-error text-xs">{t("welcome.testFailed")}</span>
+                <span className="text-error text-xs">{t("connection.failed", { error: testError || t("welcome.testFailed") })}</span>
               )}
             </div>
+            {testResult === "error" && testError && (
+              <div className="text-xs text-error/80">
+                {t("connection.failedHint")}
+              </div>
+            )}
 
             <div className="flex justify-between items-center pt-2">
               <button
@@ -189,11 +220,16 @@ export function WelcomeModal({ defaultUrl, onComplete, onSkip }: WelcomeModalPro
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => setStep(3)}
-                disabled={!url.trim() || !apiKey.trim()}
+                disabled={!url.trim() || !apiKey.trim() || testResult !== "success"}
               >
                 {t("welcome.next")}
               </button>
             </div>
+            {testResult !== "success" && (
+              <div className="text-xs opacity-60 text-center">
+                {t("welcome.testRequired")}
+              </div>
+            )}
           </div>
         )}
 
@@ -207,10 +243,10 @@ export function WelcomeModal({ defaultUrl, onComplete, onSkip }: WelcomeModalPro
             <p className="text-sm opacity-60">{t("welcome.doneSubtitle")}</p>
             <button
               className="btn btn-primary btn-wide"
-              onClick={() =>
-                onComplete(url, apiKey, providerName.trim() || t("welcome.providerNameDefault"))
-              }
+              onClick={handleFinish}
+              disabled={saving || testResult !== "success"}
             >
+              {saving ? <span className="loading loading-spinner loading-xs" /> : null}
               {t("welcome.enterApp")}
             </button>
           </div>

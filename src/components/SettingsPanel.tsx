@@ -50,6 +50,7 @@ export function SettingsPanel({
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"success" | "error" | null>(null);
+  const [testError, setTestError] = useState("");
 
   const handleAuthModeChange = (mode: AuthMode) => {
     setAuthMode(mode);
@@ -88,14 +89,17 @@ export function SettingsPanel({
     if (!url.trim() || !apiKey.trim()) return;
     setTesting(true);
     setTestResult(null);
+    setTestError("");
     try {
       await invoke("test_connection", { url, apiKey });
       setTestResult("success");
-    } catch {
+    } catch (error) {
       setTestResult("error");
+      setTestError(error instanceof Error ? error.message : String(error));
     } finally {
       setTesting(false);
       setTimeout(() => setTestResult(null), 3000);
+      setTimeout(() => setTestError(""), 3000);
     }
   };
 
@@ -272,7 +276,7 @@ export function SettingsPanel({
           {/* Connection test failure hint */}
           {testResult === "error" && (
             <div className="text-xs text-error opacity-70 px-0.5">
-              {t("connection.failedHint")}
+              {t("connection.failed", { error: testError || t("connection.failedHint") })}
             </div>
           )}
 

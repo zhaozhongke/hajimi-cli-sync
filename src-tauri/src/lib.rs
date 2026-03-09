@@ -74,6 +74,15 @@ fn get_proxy_url(app: &str, base_url: &str) -> String {
     }
 }
 
+fn get_models_url(base_url: &str) -> String {
+    let url = base_url.trim_end_matches('/');
+    if url.ends_with("/v1") {
+        format!("{url}/models")
+    } else {
+        format!("{url}/v1/models")
+    }
+}
+
 #[tauri::command]
 async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String> {
     // 首先检查系统环境
@@ -395,7 +404,7 @@ async fn test_connection(url: String, api_key: String) -> Result<String, String>
         return Err("API key cannot be empty".to_string());
     }
 
-    let models_url = format!("{}/v1/models", url.trim_end_matches('/'));
+    let models_url = get_models_url(&url);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -426,6 +435,19 @@ async fn test_connection(url: String, api_key: String) -> Result<String, String>
         // SECURITY: Truncate body to prevent leaking large error pages
         let summary: String = body.chars().take(200).collect();
         Err(format!("Server returned {status}: {summary}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_models_url;
+
+    #[test]
+    fn test_get_models_url_appends_v1_once() {
+        assert_eq!(get_models_url("https://example.com"), "https://example.com/v1/models");
+        assert_eq!(get_models_url("https://example.com/"), "https://example.com/v1/models");
+        assert_eq!(get_models_url("https://example.com/v1"), "https://example.com/v1/models");
+        assert_eq!(get_models_url("https://example.com/v1/"), "https://example.com/v1/models");
     }
 }
 

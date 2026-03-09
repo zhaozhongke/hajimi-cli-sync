@@ -167,12 +167,14 @@ function App() {
         await saveProvider(newProvider);
         await switchProvider(newProvider.id);
         await reloadProviders();
+        localStorage.setItem("hajimi-onboarding-done", "true");
+        setShowWelcome(false);
+        setShowSyncHint(true);
+        return true;
       } catch (e) {
         toast.error(String(e), { duration: 5000 });
+        return false;
       }
-      localStorage.setItem("hajimi-onboarding-done", "true");
-      setShowWelcome(false);
-      setShowSyncHint(true);
     },
     [reloadProviders]
   );

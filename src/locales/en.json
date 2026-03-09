@@ -216,6 +216,7 @@
     "testConnection": "Test Connection",
     "testSuccess": "Connection successful!",
     "testFailed": "Connection failed — check URL and key",
+    "testRequired": "Test the connection successfully before continuing",
     "next": "Next",
     "doneTitle": "All Set!",
     "doneSubtitle": "Your provider is saved — now sync your AI tools",
