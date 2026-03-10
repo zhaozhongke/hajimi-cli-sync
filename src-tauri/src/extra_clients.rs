@@ -730,7 +730,7 @@ fn sync_chatbox(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<(
     ensure_parent_dir(&config_path)?;
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
 
-    let mut config: Value = read_or_empty_json(&config_path);
+    let mut config: Value = read_or_empty_json(&config_path, "extra_clients")?;
 
     let obj = config
         .as_object_mut()
@@ -760,11 +760,7 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
     ensure_parent_dir(&config_path)?;
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
 
-    let mut config: Value = read_or_empty_json(&config_path);
-
-    if !config.is_object() {
-        config = serde_json::json!({});
-    }
+    let mut config: Value = read_or_empty_json(&config_path, "extra_clients")?;
 
     // Build our provider entry
     let mut provider = serde_json::json!({
@@ -828,11 +824,7 @@ fn sync_sillytavern(proxy_url: &str, api_key: &str) -> Result<(), String> {
     ensure_parent_dir(&secrets_path)?;
     utils::create_rotated_backup(&secrets_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
 
-    let mut secrets: Value = read_or_empty_json(&secrets_path);
-
-    if !secrets.is_object() {
-        secrets = serde_json::json!({});
-    }
+    let mut secrets: Value = read_or_empty_json(&secrets_path, "extra_clients")?;
 
     let obj = secrets.as_object_mut().unwrap();
     obj.insert(
@@ -866,10 +858,7 @@ fn sync_xcode_claude(proxy_url: &str, api_key: &str, model: Option<&str>) -> Res
         // Merge into existing settings.json — preserve user env vars like
         // NODE_EXTRA_CA_CERTS / SSL_CERT_FILE that may be needed for
         // self-signed or internal CA certificates.
-        let mut config: Value = read_or_empty_json(&config_path);
-        if !config.is_object() {
-            config = serde_json::json!({});
-        }
+        let mut config: Value = read_or_empty_json(&config_path, "extra_clients")?;
 
         let obj = config.as_object_mut().unwrap();
         let env = obj.entry("env").or_insert(serde_json::json!({}));
@@ -1053,15 +1042,14 @@ fn ensure_parent_dir(path: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
-fn read_or_empty_json(path: &PathBuf) -> Value {
-    if path.exists() {
-        fs::read_to_string(path)
-            .ok()
-            .and_then(|c| serde_json::from_str(&c).ok())
-            .unwrap_or_else(|| serde_json::json!({}))
-    } else {
-        serde_json::json!({})
+fn read_or_empty_json(path: &PathBuf, scope: &str) -> Result<Value, String> {
+    if !path.exists() {
+        return Ok(serde_json::json!({}));
     }
+
+    let content = fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read existing config {path:?}: {e}"))?;
+    utils::load_json_object_or_empty(path, &content, scope).map_err(|e| e.to_string())
 }
 
 pub fn write_extra_config_content(
@@ -1322,9 +1310,31 @@ mod tests {
     #[test]
     fn test_read_or_empty_json_nonexistent() {
         let p = PathBuf::from("/tmp/definitely_does_not_exist_12345.json");
-        let v = read_or_empty_json(&p);
+        let v = read_or_empty_json(&p, "test").unwrap();
         assert!(v.is_object());
         assert!(v.as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_read_or_empty_json_preserves_corrupt_file() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+        fs::write(&config_path, "{broken").unwrap();
+
+        let value = read_or_empty_json(&config_path, "test").unwrap();
+
+        assert!(value.as_object().unwrap().is_empty());
+        let corrupt_backups: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(utils::CORRUPT_BACKUP_SUFFIX)
+            })
+            .collect();
+        assert_eq!(corrupt_backups.len(), 1);
     }
 
     #[test]
