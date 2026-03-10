@@ -214,9 +214,11 @@ pub fn get_cli_version(executable: &PathBuf) -> Option<String> {
 /// Maximum number of timestamped backups to retain per config file.
 const BACKUP_RETAIN_COUNT: usize = 5;
 
-/// Create a timestamped backup and rotate old backups (keep latest N).
-/// Returns the path to the new backup file.
-pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<PathBuf>> {
+fn create_timestamped_backup(
+    path: &PathBuf,
+    suffix: &str,
+    maintain_simple_backup: bool,
+) -> Result<Option<PathBuf>> {
     if !path.exists() {
         return Ok(None);
     }
@@ -231,13 +233,15 @@ pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<Path
         .parent()
         .ok_or_else(|| SyncError::Other("Invalid file path".to_string()))?;
 
-    // Also maintain the simple .bak for quick restore (backwards compat)
-    let simple_backup = path.with_file_name(format!("{file_name}{suffix}"));
-    if !simple_backup.exists() {
-        fs::copy(path, &simple_backup).map_err(|e| SyncError::FileWriteFailed {
-            path: simple_backup.to_string_lossy().to_string(),
-            reason: e.to_string(),
-        })?;
+    if maintain_simple_backup {
+        // Also maintain the simple .bak for quick restore (backwards compat)
+        let simple_backup = path.with_file_name(format!("{file_name}{suffix}"));
+        if !simple_backup.exists() {
+            fs::copy(path, &simple_backup).map_err(|e| SyncError::FileWriteFailed {
+                path: simple_backup.to_string_lossy().to_string(),
+                reason: e.to_string(),
+            })?;
+        }
     }
 
     // Create timestamped backup: filename.20260218_153045.bak
@@ -255,6 +259,17 @@ pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<Path
     cleanup_old_backups(parent, &file_name, suffix)?;
 
     Ok(Some(backup_path))
+}
+
+/// Create a timestamped backup and rotate old backups (keep latest N).
+/// Returns the path to the new backup file.
+pub fn create_rotated_backup(path: &PathBuf, suffix: &str) -> Result<Option<PathBuf>> {
+    create_timestamped_backup(path, suffix, true)
+}
+
+/// Preserve a corrupted config before rebuilding it from scratch.
+pub fn create_corrupt_backup(path: &PathBuf) -> Result<Option<PathBuf>> {
+    create_timestamped_backup(path, CORRUPT_BACKUP_SUFFIX, false)
 }
 
 /// Remove old timestamped backups, keeping the newest `BACKUP_RETAIN_COUNT`.
@@ -392,6 +407,40 @@ pub fn to_json_pretty(value: &Value) -> Result<String> {
 
 /// Canonical backup suffix used across all sync modules.
 pub const BACKUP_SUFFIX: &str = ".antigravity.bak";
+pub const CORRUPT_BACKUP_SUFFIX: &str = ".corrupt.bak";
+
+/// Parse an existing JSON config, but fall back to `{}` if it is corrupt or not an object.
+/// When fallback happens, preserve the original file into a timestamped corrupt backup first.
+pub fn load_json_object_or_empty(path: &PathBuf, content: &str, scope: &str) -> Result<Value> {
+    if content.trim().is_empty() {
+        return Ok(serde_json::json!({}));
+    }
+
+    match serde_json::from_str::<Value>(content) {
+        Ok(json) if json.is_object() => Ok(json),
+        Ok(_) => {
+            let backup_path = create_corrupt_backup(path)?;
+            tracing::warn!(
+                "[{}] Non-object JSON in {:?}; rebuilding with empty object. Preserved original at {:?}",
+                scope,
+                path,
+                backup_path
+            );
+            Ok(serde_json::json!({}))
+        }
+        Err(e) => {
+            let backup_path = create_corrupt_backup(path)?;
+            tracing::warn!(
+                "[{}] Corrupted JSON in {:?}: {}. Rebuilding with empty object. Preserved original at {:?}",
+                scope,
+                path,
+                e,
+                backup_path
+            );
+            Ok(serde_json::json!({}))
+        }
+    }
+}
 
 /// Compare two proxy URLs ignoring trailing slashes and optional /v1 suffix.
 pub fn urls_match(a: &str, b: &str) -> bool {
@@ -444,6 +493,7 @@ pub fn validate_url(url: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn test_extract_version_slash_format() {
@@ -488,5 +538,44 @@ mod tests {
         assert!(validate_url("").is_err());
         assert!(validate_url("ftp://example.com").is_err());
         assert!(validate_url("not-a-url").is_err());
+    }
+
+    #[test]
+    fn test_create_corrupt_backup_preserves_original_content() {
+        let dir = TempDir::new().unwrap();
+        let file_path = dir.path().join("broken.json");
+        fs::write(&file_path, "{not valid json").unwrap();
+
+        let backup_path = create_corrupt_backup(&file_path).unwrap().unwrap();
+        assert!(backup_path.exists());
+        assert!(backup_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains(CORRUPT_BACKUP_SUFFIX));
+        assert_eq!(fs::read_to_string(&backup_path).unwrap(), "{not valid json");
+    }
+
+    #[test]
+    fn test_load_json_object_or_empty_preserves_corrupt_file() {
+        let dir = TempDir::new().unwrap();
+        let file_path = dir.path().join("settings.json");
+        fs::write(&file_path, "{ this is broken json").unwrap();
+
+        let content = fs::read_to_string(&file_path).unwrap();
+        let json = load_json_object_or_empty(&file_path, &content, "test").unwrap();
+
+        assert!(json.is_object());
+        let corrupt_backups: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(CORRUPT_BACKUP_SUFFIX)
+            })
+            .collect();
+        assert_eq!(corrupt_backups.len(), 1);
     }
 }

@@ -444,10 +444,22 @@ mod tests {
 
     #[test]
     fn test_get_models_url_appends_v1_once() {
-        assert_eq!(get_models_url("https://example.com"), "https://example.com/v1/models");
-        assert_eq!(get_models_url("https://example.com/"), "https://example.com/v1/models");
-        assert_eq!(get_models_url("https://example.com/v1"), "https://example.com/v1/models");
-        assert_eq!(get_models_url("https://example.com/v1/"), "https://example.com/v1/models");
+        assert_eq!(
+            get_models_url("https://example.com"),
+            "https://example.com/v1/models"
+        );
+        assert_eq!(
+            get_models_url("https://example.com/"),
+            "https://example.com/v1/models"
+        );
+        assert_eq!(
+            get_models_url("https://example.com/v1"),
+            "https://example.com/v1/models"
+        );
+        assert_eq!(
+            get_models_url("https://example.com/v1/"),
+            "https://example.com/v1/models"
+        );
     }
 }
 

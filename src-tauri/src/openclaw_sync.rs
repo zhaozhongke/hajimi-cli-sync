@@ -166,17 +166,13 @@ pub async fn sync_openclaw_config(
     utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
 
     let mut config: Value = if config_path.exists() {
-        fs::read_to_string(&config_path)
-            .ok()
-            .and_then(|c| serde_json::from_str(&c).ok())
-            .unwrap_or_else(|| serde_json::json!({}))
+        let content = fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read existing config {:?}: {e}", config_path))?;
+        utils::load_json_object_or_empty(&config_path, &content, "openclaw_sync")
+            .map_err(|e| e.to_string())?
     } else {
         serde_json::json!({})
     };
-
-    if !config.is_object() {
-        config = serde_json::json!({});
-    }
 
     let normalized_url = normalize_base_url(proxy_url);
 

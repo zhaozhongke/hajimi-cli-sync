@@ -23,6 +23,31 @@ pub struct CliConfigFile {
 
 use crate::utils::BACKUP_SUFFIX;
 
+fn load_toml_or_empty(
+    path: &PathBuf,
+    content: &str,
+    scope: &str,
+) -> Result<toml_edit::DocumentMut, String> {
+    if content.trim().is_empty() {
+        return Ok(toml_edit::DocumentMut::new());
+    }
+
+    match content.parse::<toml_edit::DocumentMut>() {
+        Ok(doc) => Ok(doc),
+        Err(e) => {
+            let backup_path = utils::create_corrupt_backup(path).map_err(|err| err.to_string())?;
+            tracing::warn!(
+                "[{}] Corrupted TOML in {:?}: {}. Rebuilding with empty document. Preserved original at {:?}",
+                scope,
+                path,
+                e,
+                backup_path
+            );
+            Ok(toml_edit::DocumentMut::new())
+        }
+    }
+}
+
 impl CliApp {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -245,7 +270,8 @@ pub fn sync_config(
         utils::create_rotated_backup(&file.path, BACKUP_SUFFIX)?;
 
         let mut content = if file.path.exists() {
-            fs::read_to_string(&file.path).unwrap_or_default()
+            fs::read_to_string(&file.path)
+                .map_err(|e| format!("Failed to read existing config {:?}: {e}", file.path))?
         } else {
             String::new()
         };
@@ -253,8 +279,9 @@ pub fn sync_config(
         match app {
             CliApp::Claude => {
                 if file.name == ".claude.json" {
-                    let mut json: Value =
-                        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}));
+                    let mut json =
+                        utils::load_json_object_or_empty(&file.path, &content, "cli_sync")
+                            .map_err(|e| e.to_string())?;
                     if let Some(obj) = json.as_object_mut() {
                         obj.insert("hasCompletedOnboarding".to_string(), Value::Bool(true));
                         obj.insert("autoUpdates".to_string(), Value::Bool(false));
@@ -279,11 +306,9 @@ pub fn sync_config(
                     }
                     content = utils::to_json_pretty(&json)?;
                 } else if file.name == "settings.json" {
-                    let mut json: Value =
-                        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}));
-                    if !json.is_object() {
-                        json = serde_json::json!({});
-                    }
+                    let mut json =
+                        utils::load_json_object_or_empty(&file.path, &content, "cli_sync")
+                            .map_err(|e| e.to_string())?;
 
                     // Safe: we just ensured json is an object above
                     let obj = json
@@ -322,8 +347,9 @@ pub fn sync_config(
             }
             CliApp::Codex => {
                 if file.name == "auth.json" {
-                    let mut json: Value =
-                        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}));
+                    let mut json =
+                        utils::load_json_object_or_empty(&file.path, &content, "cli_sync")
+                            .map_err(|e| e.to_string())?;
                     if let Some(obj) = json.as_object_mut() {
                         obj.insert(
                             "OPENAI_API_KEY".to_string(),
@@ -337,9 +363,8 @@ pub fn sync_config(
                     content = utils::to_json_pretty(&json)?;
                 } else if file.name == "config.toml" {
                     use toml_edit::{value, DocumentMut};
-                    let mut doc = content
-                        .parse::<DocumentMut>()
-                        .unwrap_or_else(|_| DocumentMut::new());
+                    let mut doc: DocumentMut =
+                        load_toml_or_empty(&file.path, &content, "cli_sync")?;
 
                     let providers = doc
                         .entry("model_providers")
@@ -404,11 +429,9 @@ pub fn sync_config(
                         content.push('\n');
                     }
                 } else if file.name == "settings.json" || file.name == "config.json" {
-                    let mut json: Value =
-                        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}));
-                    if !json.is_object() {
-                        json = serde_json::json!({});
-                    }
+                    let mut json =
+                        utils::load_json_object_or_empty(&file.path, &content, "cli_sync")
+                            .map_err(|e| e.to_string())?;
 
                     // Build nested security.auth structure safely
                     let obj = json
@@ -1026,6 +1049,29 @@ base_url = "http://localhost:8045/v1"
         let json: Value = serde_json::from_str(corrupted).unwrap_or_else(|_| serde_json::json!({}));
         assert!(json.is_object());
         assert!(json.as_object().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_corrupted_toml_preserves_backup_before_fallback() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.toml");
+        fs::write(&config_path, "model_provider = [broken").unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        let doc = load_toml_or_empty(&config_path, &content, "test").unwrap();
+
+        assert!(doc.is_empty());
+        let corrupt_backups: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(utils::CORRUPT_BACKUP_SUFFIX)
+            })
+            .collect();
+        assert_eq!(corrupt_backups.len(), 1);
     }
 
     /// 测试restore清理代理字段（Claude）
