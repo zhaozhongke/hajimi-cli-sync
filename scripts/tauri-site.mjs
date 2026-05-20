@@ -11,6 +11,7 @@ const repoRoot = join(__dirname, "..");
 const tauriDir = join(repoRoot, "src-tauri");
 const generatedConfigPath = join(tauriDir, "tauri.site.conf.json");
 const profiles = JSON.parse(readFileSync(join(repoRoot, "src/site-profiles.json"), "utf8"));
+const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
 
 const [, , command, ...rawArgs] = process.argv;
 if (!command || !["build", "dev"].includes(command)) {
@@ -44,7 +45,7 @@ function ensureIcons() {
 
   mkdirSync(outputDir, { recursive: true });
   const result = spawnSync(
-    "npx",
+    npxCommand,
     ["@tauri-apps/cli", "icon", sourcePath, "--output", outputDir],
     { cwd: repoRoot, stdio: "inherit", env: process.env }
   );
@@ -89,7 +90,7 @@ const env = {
 };
 
 const tauriArgs = ["@tauri-apps/cli", command, "--config", generatedConfigPath, ...args];
-const result = spawnSync("npx", tauriArgs, {
+const result = spawnSync(npxCommand, tauriArgs, {
   cwd: repoRoot,
   stdio: "inherit",
   env
