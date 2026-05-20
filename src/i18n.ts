@@ -18,6 +18,7 @@ i18n.use(initReactI18next).init({
     escapeValue: false,
     defaultVariables: {
       appName: SITE_PROFILE.appName,
+      appSubtitle: SITE_PROFILE.appSubtitle,
       brandName: SITE_PROFILE.brandName,
       brandShortName: SITE_PROFILE.brandShortName,
       providerName: SITE_PROFILE.providerName,
