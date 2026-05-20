@@ -1567,7 +1567,7 @@ dependencies = [
 
 [[package]]
 name = "hajimi-cli-sync"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
