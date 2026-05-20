@@ -1,15 +1,15 @@
 {
   "name": "hajimi-cli-sync",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:dev": "node scripts/tauri-site.mjs dev",
+    "tauri:build": "node scripts/tauri-site.mjs build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",

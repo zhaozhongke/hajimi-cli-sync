@@ -1,6 +1,6 @@
 [package]
 name = "hajimi-cli-sync"
-version = "1.5.1"
+version = "1.6.0"
 description = "Sync CLI tool configurations with one click"
 authors = ["hajimi"]
 license = "MIT"
@@ -12,6 +12,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "^2.2.5", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [dependencies]
 tauri = { version = "^2.2.5", features = [] }
@@ -34,6 +36,7 @@ tauri-plugin-fs = "2"
 chrono = "0.4.43"
 rusqlite = { version = "0.31", features = ["bundled"] }
 uuid = { version = "1.11", features = ["v4"] }
+serde_yaml = "0.9"
 
 [dev-dependencies]
 tempfile = "3"

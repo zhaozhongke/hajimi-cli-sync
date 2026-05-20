@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { CliStatusResult, SyncAllResult } from "../types";
+import { storageKeys } from "../site";
 
 export interface SyncLogEntry {
   id: number;
@@ -13,7 +14,7 @@ export interface SyncLogEntry {
   detail?: string;
 }
 
-const LOG_KEY = "hajimi-sync-log";
+const LOG_KEY = storageKeys.syncLog;
 const MAX_LOG_ENTRIES = 50;
 
 function readLog(): SyncLogEntry[] {

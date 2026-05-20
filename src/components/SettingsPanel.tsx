@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ModelSelector } from "./ModelSelector";
 import { AccountLogin } from "./AccountLogin";
 import type { AuthMode } from "../types";
+import { getConsoleStoreUrl, SITE_PROFILE, storageKeys } from "../site";
 
 interface SettingsPanelProps {
   url: string;
@@ -45,7 +46,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const { t } = useTranslation();
   const [authMode, setAuthMode] = useState<AuthMode>(
-    () => (localStorage.getItem("hajimi-auth-mode") as AuthMode) || "manual"
+    () => (localStorage.getItem(storageKeys.authMode) as AuthMode) || "manual"
   );
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -54,7 +55,7 @@ export function SettingsPanel({
 
   const handleAuthModeChange = (mode: AuthMode) => {
     setAuthMode(mode);
-    localStorage.setItem("hajimi-auth-mode", mode);
+    localStorage.setItem(storageKeys.authMode, mode);
   };
 
   const urlError = useMemo(() => {
@@ -113,7 +114,7 @@ export function SettingsPanel({
     };
     try {
       const filePath = await save({
-        defaultPath: "hajimi-settings.json",
+        defaultPath: SITE_PROFILE.exportFileName,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
       if (filePath) {
@@ -143,6 +144,8 @@ export function SettingsPanel({
       toast.error(t("settings.importFailed") + ": " + e);
     }
   };
+
+  const purchaseUrl = getConsoleStoreUrl(url || SITE_PROFILE.defaultBaseUrl);
 
   const handleAccountConfigReady = (accountUrl: string, accountApiKey: string, tokenName: string) => {
     onUrlChange(accountUrl);
@@ -329,7 +332,7 @@ export function SettingsPanel({
           {/* Purchase CTA */}
           <button
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-400/20 hover:border-orange-400/40 hover:from-orange-500/15 hover:to-amber-500/15 transition-all text-left group"
-            onClick={() => invoke("open_external_url", { url: "https://m.tb.cn/h.7EJM4va?tk=hb16UmTYhKB" })}
+            onClick={() => invoke("open_external_url", { url: purchaseUrl })}
           >
             <div className="w-7 h-7 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0 group-hover:bg-orange-500/25 transition-colors">
               <ShoppingCart className="w-3.5 h-3.5 text-orange-500" />

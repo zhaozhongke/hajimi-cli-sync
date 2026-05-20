@@ -17,9 +17,15 @@ import { listProviders, saveProvider, switchProvider } from "./hooks/useProvider
 import { CLI_LIST } from "./types";
 import type { CliInfo, CliStatusResult, ProviderRecord } from "./types";
 import type { CliCategory } from "./types";
-
-const DEFAULT_URL = "https://vip.aipro.love";
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+import {
+  DEFAULT_MODEL,
+  DEFAULT_URL,
+  readSiteStorage,
+  SITE_PROFILE,
+  storageKeys,
+  THEME_DARK,
+  THEME_LIGHT,
+} from "./site";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -29,23 +35,27 @@ function App() {
   const { t, i18n } = useTranslation();
 
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem("hajimi-theme");
+    const saved = readSiteStorage("theme");
     // Migrate old theme values
-    if (!saved || saved === "emerald" || saved === "light") return "hajimi-light";
-    if (saved === "dark") return "hajimi-dark";
+    if (!saved || saved === "emerald" || saved === "light" || saved === "hajimi-light") {
+      return THEME_LIGHT;
+    }
+    if (saved === "dark" || saved === "hajimi-dark") {
+      return THEME_DARK;
+    }
     return saved;
   });
 
   // Apply theme to <html> element
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("hajimi-theme", theme);
+    localStorage.setItem(storageKeys.theme, theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === "hajimi-dark" ? "hajimi-light" : "hajimi-dark"));
+    setTheme((prev) => (prev === THEME_DARK ? THEME_LIGHT : THEME_DARK));
   }, []);
-  const isDark = theme === "hajimi-dark";
+  const isDark = theme === THEME_DARK;
 
   // ── App version (from Tauri) ──────────────────────────────────────────────
   const [appVersion, setAppVersion] = useState("");
@@ -72,17 +82,17 @@ function App() {
   // Derived: the currently-active provider (DB truth).
   const currentProvider = providers.find((p) => p.is_current) ?? null;
 
-  const [url, setUrl] = useState(() => localStorage.getItem("hajimi-url") || DEFAULT_URL);
-  const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("hajimi-save-key") !== "false");
+  const [url, setUrl] = useState(() => readSiteStorage("url") || DEFAULT_URL);
+  const [saveApiKey, setSaveApiKey] = useState(() => readSiteStorage("saveKey") !== "false");
   const [apiKey, setApiKey] = useState(() =>
-    localStorage.getItem("hajimi-save-key") !== "false"
-      ? localStorage.getItem("hajimi-key") || ""
+    readSiteStorage("saveKey") !== "false"
+      ? readSiteStorage("key") || ""
       : ""
   );
-  const [defaultModel, setDefaultModel] = useState(() => localStorage.getItem("hajimi-model") || DEFAULT_MODEL);
+  const [defaultModel, setDefaultModel] = useState(() => readSiteStorage("model") || DEFAULT_MODEL);
   const [perCliModels, setPerCliModels] = useState<Record<string, string>>(() => {
     try {
-      const saved = localStorage.getItem("hajimi-cli-models");
+      const saved = readSiteStorage("cliModels");
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   });
@@ -109,10 +119,10 @@ function App() {
         // Migration: if DB has no providers and localStorage has credentials,
         // create the first provider and immediately activate it.
         if (list.length === 0) {
-          const lsUrl = localStorage.getItem("hajimi-url") || DEFAULT_URL;
-          const lsKey = localStorage.getItem("hajimi-key") || "";
-          const lsModel = localStorage.getItem("hajimi-model") || DEFAULT_MODEL;
-          const lsCliModels = localStorage.getItem("hajimi-cli-models") || "{}";
+          const lsUrl = readSiteStorage("url") || DEFAULT_URL;
+          const lsKey = readSiteStorage("key") || "";
+          const lsModel = readSiteStorage("model") || DEFAULT_MODEL;
+          const lsCliModels = readSiteStorage("cliModels") || "{}";
           if (lsUrl && lsKey) {
             // Returning user with localStorage credentials — migrate silently
             const migrated: ProviderRecord = {
@@ -132,8 +142,8 @@ function App() {
               await switchProvider(migrated.id);
             } catch { /* non-fatal */ }
             await reloadProviders();
-            localStorage.setItem("hajimi-onboarding-done", "true");
-          } else if (!localStorage.getItem("hajimi-onboarding-done")) {
+            localStorage.setItem(storageKeys.onboardingDone, "true");
+          } else if (!readSiteStorage("onboardingDone")) {
             // Brand new user — show welcome wizard
             setShowWelcome(true);
           }
@@ -167,7 +177,7 @@ function App() {
         await saveProvider(newProvider);
         await switchProvider(newProvider.id);
         await reloadProviders();
-        localStorage.setItem("hajimi-onboarding-done", "true");
+        localStorage.setItem(storageKeys.onboardingDone, "true");
         setShowWelcome(false);
         setShowSyncHint(true);
         return true;
@@ -180,7 +190,7 @@ function App() {
   );
 
   const handleWelcomeSkip = useCallback(() => {
-    localStorage.setItem("hajimi-onboarding-done", "true");
+    localStorage.setItem(storageKeys.onboardingDone, "true");
     setShowWelcome(false);
   }, []);
 
@@ -217,17 +227,17 @@ function App() {
 
   // Persist settings (url/key/model/perCliModels still saved to localStorage as
   // fallback, and as the "live editing" state for the current session)
-  useEffect(() => { localStorage.setItem("hajimi-url", url); }, [url]);
+  useEffect(() => { localStorage.setItem(storageKeys.url, url); }, [url]);
   useEffect(() => {
-    localStorage.setItem("hajimi-save-key", String(saveApiKey));
+    localStorage.setItem(storageKeys.saveKey, String(saveApiKey));
     if (saveApiKey) {
-      localStorage.setItem("hajimi-key", apiKey);
+      localStorage.setItem(storageKeys.key, apiKey);
     } else {
-      localStorage.removeItem("hajimi-key");
+      localStorage.removeItem(storageKeys.key);
     }
   }, [apiKey, saveApiKey]);
-  useEffect(() => { localStorage.setItem("hajimi-model", defaultModel); }, [defaultModel]);
-  useEffect(() => { localStorage.setItem("hajimi-cli-models", JSON.stringify(perCliModels)); }, [perCliModels]);
+  useEffect(() => { localStorage.setItem(storageKeys.model, defaultModel); }, [defaultModel]);
+  useEffect(() => { localStorage.setItem(storageKeys.cliModels, JSON.stringify(perCliModels)); }, [perCliModels]);
 
   const handleUrlChange = useCallback((newUrl: string) => {
     setUrl(newUrl);
@@ -298,7 +308,7 @@ function App() {
   const toggleLang = useCallback(() => {
     const newLang = i18n.language === "zh" ? "en" : "zh";
     i18n.changeLanguage(newLang);
-    localStorage.setItem("hajimi-lang", newLang);
+    localStorage.setItem(storageKeys.language, newLang);
   }, [i18n]);
 
   // Keyboard shortcuts
@@ -327,7 +337,7 @@ function App() {
   const hasInstalled = statuses.length > 0;
 
   const [activeTab, setActiveTab] = useState<CliCategory>(() =>
-    (localStorage.getItem("hajimi-tab") as CliCategory) || "coding"
+    (readSiteStorage("tab") as CliCategory) || "coding"
   );
   const [showHistory, setShowHistory] = useState(false);
   const [showManualTools, setShowManualTools] = useState(false);
@@ -346,7 +356,7 @@ function App() {
   }, [statuses]);
 
   // Persist active tab
-  useEffect(() => { localStorage.setItem("hajimi-tab", activeTab); }, [activeTab]);
+  useEffect(() => { localStorage.setItem(storageKeys.tab, activeTab); }, [activeTab]);
 
   const tabOrder: CliCategory[] = ["coding", "chat", "agent", "rp"];
 
@@ -414,8 +424,8 @@ function App() {
           // Deep link sync: construct URL and open it directly
           if (cli.deepLinkTemplate) {
             const config = JSON.stringify({
-              id: "hakimiai",
-              name: "\u54c8\u57fa\u7c73AI",
+              id: SITE_PROFILE.providerId,
+              name: SITE_PROFILE.providerName,
               baseUrl: url,
               apiKey: apiKey,
             });
@@ -453,6 +463,8 @@ function App() {
     );
   };
 
+  const [iconStart, iconMid, iconEnd] = SITE_PROFILE.iconGradient;
+
   return (
     <div className="min-h-screen mesh-bg p-4 md:p-6">
       <div className="max-w-5xl mx-auto md:flex md:gap-6">
@@ -470,9 +482,9 @@ function App() {
               >
                 <defs>
                   <linearGradient id="app-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%"   stopColor="#6366f1" />
-                    <stop offset="50%"  stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#06b6d4" />
+                    <stop offset="0%" stopColor={iconStart} />
+                    <stop offset="50%" stopColor={iconMid} />
+                    <stop offset="100%" stopColor={iconEnd} />
                   </linearGradient>
                 </defs>
                 <rect width="512" height="512" rx="108" ry="108" fill="url(#app-logo-grad)" />
@@ -505,7 +517,7 @@ function App() {
                 )}
                 <button
                   className="btn btn-ghost btn-xs gap-1 opacity-50 hover:opacity-100 transition-opacity"
-                  onClick={() => invoke("open_external_url", { url: "https://docs.aipro.love" })}
+                  onClick={() => invoke("open_external_url", { url: SITE_PROFILE.docsUrl })}
                 >
                   {t("app.docs")}
                   <ExternalLink className="w-2.5 h-2.5" />

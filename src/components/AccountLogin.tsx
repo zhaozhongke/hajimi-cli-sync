@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAccount } from "../hooks/useAccount";
 import { ModelSelector } from "./ModelSelector";
 import type { ApiTokenInfo } from "../types";
+import { DEFAULT_URL, getConsoleStoreUrl, getOriginFromBaseUrl, readSiteStorage } from "../site";
 
 interface AccountLoginProps {
   onConfigReady: (url: string, apiKey: string, tokenName: string) => void;
@@ -59,7 +60,7 @@ export function AccountLogin({
   } = useAccount();
 
   const [platformUrl, setPlatformUrl] = useState(
-    () => localStorage.getItem("hajimi-account-url") || "https://vip.aipro.love"
+    () => readSiteStorage("accountUrl") || DEFAULT_URL
   );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -118,7 +119,7 @@ export function AccountLogin({
   };
 
   const handleRegister = () => {
-    const registerUrl = `${platformUrl.replace(/\/$/, "")}/register`;
+    const registerUrl = `${getOriginFromBaseUrl(platformUrl)}/register`;
     invoke("open_external_url", { url: registerUrl });
   };
 
@@ -310,7 +311,7 @@ export function AccountLogin({
           <div>{t("account.noTokens")}</div>
           <button
             className="link link-primary text-xs"
-            onClick={() => invoke("open_external_url", { url: `${platformUrl}/topup` })}
+            onClick={() => invoke("open_external_url", { url: getConsoleStoreUrl(platformUrl) })}
           >
             {t("account.goTopup")}
           </button>

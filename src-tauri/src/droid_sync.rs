@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::site_profile::SITE_PROFILE;
 use crate::utils;
 
 const DROID_DIR: &str = ".factory";
@@ -92,7 +93,7 @@ fn build_droid_custom_models(proxy_url: &str, api_key: &str, model_ids: &[&str])
         .map(|model_id| {
             serde_json::json!({
                 "id": format!("{}{}", AG_ID_PREFIX, model_id),
-                "name": format!("[Hajimi] {}", model_id),
+                "name": format!("[{}] {}", SITE_PROFILE.brand_name, model_id),
                 "baseUrl": proxy_url,
                 "apiKey": api_key,
                 "provider": "anthropic"

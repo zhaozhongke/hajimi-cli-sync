@@ -1,13 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useCallback } from "react";
 import type { PlatformInfo, AccountInfo, ApiTokenInfo } from "../types";
+import { storageKeys } from "../site";
 
 const SESSION_KEYS = {
-  mode: "hajimi-auth-mode",
-  url: "hajimi-account-url",
-  session: "hajimi-account-session",
-  userId: "hajimi-account-user-id",
-  username: "hajimi-account-username",
+  mode: storageKeys.authMode,
+  url: storageKeys.accountUrl,
+  session: storageKeys.accountSession,
+  userId: storageKeys.accountUserId,
+  username: storageKeys.accountUsername,
 } as const;
 
 export function useAccount() {

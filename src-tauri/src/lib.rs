@@ -7,6 +7,7 @@ mod error;
 mod extra_clients;
 mod openclaw_sync;
 mod opencode_sync;
+mod site_profile;
 mod store;
 mod system_check;
 mod utils;
@@ -16,6 +17,7 @@ use database::dao::{backup, providers};
 use extra_clients::ExtraClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use site_profile::SITE_PROFILE;
 use std::sync::Arc;
 use store::AppState;
 use tauri::State;
@@ -63,7 +65,7 @@ fn get_cli_app(app: &str) -> Option<CliApp> {
 fn get_proxy_url(app: &str, base_url: &str) -> String {
     let url = base_url.trim_end_matches('/');
     match app {
-        "codex" | "opencode" => {
+        "codex" | "opencode" | "hermes" => {
             if url.ends_with("/v1") {
                 url.to_string()
             } else {
@@ -99,12 +101,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     for app_name in &["claude", "codex", "gemini"] {
         if let Some(app) = get_cli_app(app_name) {
             let proxy_url = get_proxy_url(app_name, &url);
-            let (_, version) = cli_sync::check_cli_installed(&app);
+            let (installed, version) = cli_sync::check_cli_installed(&app);
             let (is_synced, has_backup, current_base_url) =
                 cli_sync::get_sync_status(&app, &proxy_url);
             results.push(CliStatusResult {
                 app: app_name.to_string(),
-                installed: true,
+                installed,
                 version,
                 is_synced,
                 has_backup,
@@ -118,11 +120,11 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // OpenCode
     {
         let proxy_url = get_proxy_url("opencode", &url);
-        let (_, version) = opencode_sync::check_opencode_installed();
+        let (installed, version) = opencode_sync::check_opencode_installed();
         let (is_synced, has_backup, current_base_url) = opencode_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "opencode".to_string(),
-            installed: true,
+            installed,
             version,
             is_synced,
             has_backup,
@@ -135,12 +137,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // Droid
     {
         let proxy_url = get_proxy_url("droid", &url);
-        let (_, version) = droid_sync::check_droid_installed();
+        let (installed, version) = droid_sync::check_droid_installed();
         let (is_synced, has_backup, current_base_url, synced_count) =
             droid_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "droid".to_string(),
-            installed: true,
+            installed,
             version,
             is_synced,
             has_backup,
@@ -153,11 +155,11 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // OpenClaw
     {
         let proxy_url = get_proxy_url("openclaw", &url);
-        let (_, version) = openclaw_sync::check_openclaw_installed();
+        let (installed, version) = openclaw_sync::check_openclaw_installed();
         let (is_synced, has_backup, current_base_url) = openclaw_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "openclaw".to_string(),
-            installed: true,
+            installed,
             version,
             is_synced,
             has_backup,
@@ -170,12 +172,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // Extra clients
     for client in ExtraClient::all() {
         let proxy_url = get_proxy_url(client.as_str(), &url);
-        let (_, version) = extra_clients::check_extra_installed(client);
+        let (installed, version) = extra_clients::check_extra_installed(client);
         let (is_synced, has_backup, current_base_url) =
             extra_clients::get_extra_sync_status(client, &proxy_url);
         results.push(CliStatusResult {
             app: client.as_str().to_string(),
-            installed: true,
+            installed,
             version,
             is_synced,
             has_backup,
@@ -475,7 +477,7 @@ async fn get_config_content(app: String, file_name: Option<String>) -> Result<St
         "droid" => droid_sync::read_droid_config_content(),
         other => {
             if let Some(client) = ExtraClient::from_str(other) {
-                extra_clients::read_extra_config_content(&client)
+                extra_clients::read_extra_config_content(&client, file_name.as_deref())
             } else {
                 Err(format!("Unknown app: {app}"))
             }
@@ -527,6 +529,7 @@ async fn launch_app(name: String) -> Result<(), String> {
         "Cherry Studio",
         "Jan",
         "Cursor",
+        "QClaw",
         "SillyTavern",
         "LobeChat",
         "BoltAI",
@@ -794,7 +797,7 @@ pub fn run() {
     // Initialise SQLite database
     let db_path = dirs::data_local_dir()
         .or_else(dirs::home_dir)
-        .map(|p| p.join("hajimi-cli-sync").join("providers.db"))
+        .map(|p| p.join(SITE_PROFILE.sqlite_dir_name).join("providers.db"))
         .expect("Cannot determine data dir");
 
     let db = database::Database::init(&db_path).unwrap_or_else(|e| {

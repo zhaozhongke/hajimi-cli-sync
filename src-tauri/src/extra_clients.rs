@@ -1,9 +1,11 @@
 use serde_json::Value;
+use serde_yaml::Value as YamlValue;
 use std::fs;
 use std::path::PathBuf;
 
 use crate::cli_sync;
 use crate::openclaw_sync;
+use crate::site_profile::SITE_PROFILE;
 use crate::utils;
 
 use crate::utils::BACKUP_SUFFIX;
@@ -15,6 +17,7 @@ pub enum ExtraClient {
     Chatbox,
     CherryStudio,
     Jan,
+    Hermes,
     Cursor,
     Cline,
     RooCode,
@@ -24,6 +27,7 @@ pub enum ExtraClient {
     BoltAI,
     XcodeClaude,
     ClawX,
+    QClaw,
 }
 
 impl ExtraClient {
@@ -33,6 +37,7 @@ impl ExtraClient {
             Self::Chatbox => "chatbox",
             Self::CherryStudio => "cherry-studio",
             Self::Jan => "jan",
+            Self::Hermes => "hermes",
             Self::Cursor => "cursor",
             Self::Cline => "cline",
             Self::RooCode => "roo-code",
@@ -42,6 +47,7 @@ impl ExtraClient {
             Self::BoltAI => "boltai",
             Self::XcodeClaude => "xcode-claude",
             Self::ClawX => "clawx",
+            Self::QClaw => "qclaw",
         }
     }
 
@@ -51,6 +57,7 @@ impl ExtraClient {
             Self::Chatbox => "Chatbox",
             Self::CherryStudio => "Cherry Studio",
             Self::Jan => "Jan",
+            Self::Hermes => "Hermes",
             Self::Cursor => "Cursor",
             Self::Cline => "Cline",
             Self::RooCode => "Roo Code",
@@ -60,6 +67,7 @@ impl ExtraClient {
             Self::BoltAI => "BoltAI",
             Self::XcodeClaude => "Xcode Claude",
             Self::ClawX => "ClawX",
+            Self::QClaw => "QClaw",
         }
     }
 
@@ -69,6 +77,7 @@ impl ExtraClient {
             Self::Chatbox,
             Self::CherryStudio,
             Self::Jan,
+            Self::Hermes,
             Self::Cursor,
             Self::Cline,
             Self::RooCode,
@@ -78,6 +87,7 @@ impl ExtraClient {
             Self::BoltAI,
             Self::XcodeClaude,
             Self::ClawX,
+            Self::QClaw,
         ]
     }
 
@@ -87,6 +97,7 @@ impl ExtraClient {
             "chatbox" => Some(Self::Chatbox),
             "cherry-studio" => Some(Self::CherryStudio),
             "jan" => Some(Self::Jan),
+            "hermes" => Some(Self::Hermes),
             "cursor" => Some(Self::Cursor),
             "cline" => Some(Self::Cline),
             "roo-code" => Some(Self::RooCode),
@@ -96,6 +107,7 @@ impl ExtraClient {
             "boltai" => Some(Self::BoltAI),
             "xcode-claude" => Some(Self::XcodeClaude),
             "clawx" => Some(Self::ClawX),
+            "qclaw" => Some(Self::QClaw),
             _ => None,
         }
     }
@@ -105,7 +117,12 @@ impl ExtraClient {
     pub fn supports_file_sync(&self) -> bool {
         matches!(
             self,
-            Self::Chatbox | Self::CherryStudio | Self::Jan | Self::SillyTavern | Self::XcodeClaude
+            Self::Chatbox
+                | Self::CherryStudio
+                | Self::Jan
+                | Self::Hermes
+                | Self::SillyTavern
+                | Self::XcodeClaude
         )
     }
 
@@ -115,6 +132,7 @@ impl ExtraClient {
             Self::Chatbox => vec!["config.json".to_string()],
             Self::CherryStudio => vec!["config.json".to_string()],
             Self::Jan => vec!["openai.json".to_string()],
+            Self::Hermes => vec!["config.yaml".to_string(), ".env".to_string()],
             Self::Cursor => vec!["(app settings)".to_string()],
             Self::Cline | Self::RooCode | Self::KiloCode => {
                 vec!["(extension settings)".to_string()]
@@ -124,6 +142,7 @@ impl ExtraClient {
             Self::LobeChat => vec!["(browser storage)".to_string()],
             Self::BoltAI => vec!["(macOS Keychain)".to_string()],
             Self::ClawX => vec!["openclaw.json".to_string()],
+            Self::QClaw => vec!["(in-app settings)".to_string()],
         }
     }
 }
@@ -184,6 +203,18 @@ fn jan_config_path() -> Option<PathBuf> {
     Some(home.join("jan").join("engines").join("openai.json"))
 }
 
+fn hermes_home_dir() -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("HERMES_HOME") {
+        return Some(PathBuf::from(path));
+    }
+    home_dir().map(|h| h.join(".hermes"))
+}
+
+fn hermes_config_path(file_name: &str) -> Option<PathBuf> {
+    let home = hermes_home_dir()?;
+    Some(home.join(file_name))
+}
+
 fn cursor_config_path() -> Option<PathBuf> {
     let app_sup = app_support_dir()?;
     Some(app_sup.join("Cursor").join("User").join("settings.json"))
@@ -238,12 +269,24 @@ fn config_path_for(client: &ExtraClient) -> Option<PathBuf> {
         ExtraClient::Chatbox => chatbox_config_path(),
         ExtraClient::CherryStudio => cherry_config_path(),
         ExtraClient::Jan => jan_config_path(),
+        ExtraClient::Hermes => hermes_config_path("config.yaml"),
         ExtraClient::Cursor => cursor_config_path(),
         ExtraClient::Cline | ExtraClient::RooCode | ExtraClient::KiloCode => vscode_settings_path(),
         ExtraClient::SillyTavern => sillytavern_secrets_path(),
         ExtraClient::XcodeClaude => xcode_claude_config_path(),
         ExtraClient::LobeChat | ExtraClient::BoltAI => None,
         ExtraClient::ClawX => home_dir().map(|h| h.join(".openclaw").join("openclaw.json")),
+        ExtraClient::QClaw => None,
+    }
+}
+
+fn config_path_for_file(client: &ExtraClient, file_name: Option<&str>) -> Option<PathBuf> {
+    match client {
+        ExtraClient::Hermes => match file_name.unwrap_or("config.yaml") {
+            ".env" => hermes_config_path(".env"),
+            _ => hermes_config_path("config.yaml"),
+        },
+        _ => config_path_for(client),
     }
 }
 
@@ -401,6 +444,21 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
                 },
             )
         }
+        ExtraClient::Hermes => {
+            if let Some(path) = utils::resolve_executable("hermes") {
+                let version = utils::get_cli_version(&path);
+                return (true, version.or_else(|| Some("detected".to_string())));
+            }
+            let installed = hermes_home_dir().is_some_and(|dir| dir.exists());
+            (
+                installed,
+                if installed {
+                    Some("detected".to_string())
+                } else {
+                    None
+                },
+            )
+        }
         ExtraClient::Cursor => {
             // Check for cursor CLI executable first
             if let Some(path) = utils::resolve_executable("cursor") {
@@ -525,6 +583,18 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
                 },
             )
         }
+        ExtraClient::QClaw => {
+            let installed =
+                is_app_installed("QClaw") || utils::resolve_executable("qclaw").is_some();
+            (
+                installed,
+                if installed {
+                    Some("detected".to_string())
+                } else {
+                    None
+                },
+            )
+        }
     }
 }
 
@@ -532,48 +602,78 @@ pub fn check_extra_installed(client: &ExtraClient) -> (bool, Option<String>) {
 // Sync status
 // ---------------------------------------------------------------------------
 
-const HAJIMI_MARKER: &str = "hajimi";
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+struct HermesModelConfig {
+    #[serde(default)]
+    default: Option<String>,
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    base_url: Option<String>,
+    #[serde(flatten)]
+    extra: std::collections::BTreeMap<String, YamlValue>,
+}
+
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+struct HermesConfig {
+    #[serde(default)]
+    model: HermesModelConfig,
+    #[serde(flatten)]
+    extra: std::collections::BTreeMap<String, YamlValue>,
+}
 
 pub fn get_extra_sync_status(
     client: &ExtraClient,
     proxy_url: &str,
 ) -> (bool, bool, Option<String>) {
-    let config_path = match config_path_for(client) {
-        Some(p) => p,
-        None => return (false, false, None),
-    };
-
-    let backup_path = backup_path_for(&config_path);
-    let has_backup = backup_path.exists();
-
-    if !config_path.exists() {
-        return (false, has_backup, None);
-    }
-
-    let content = match fs::read_to_string(&config_path) {
-        Ok(c) => c,
-        Err(_) => return (false, has_backup, None),
-    };
-
     match client {
         ExtraClient::ClaudeVSCode => {
             // Reuse Claude CLI sync status check
             let cli_app = cli_sync::CliApp::Claude;
             cli_sync::get_sync_status(&cli_app, proxy_url)
         }
-        ExtraClient::Chatbox => check_chatbox_synced(&content, proxy_url, has_backup),
-        ExtraClient::CherryStudio => check_cherry_synced(&content, proxy_url, has_backup),
-        ExtraClient::Jan => check_jan_synced(&content, proxy_url, has_backup),
-        ExtraClient::SillyTavern => check_sillytavern_synced(&content, proxy_url, has_backup),
-        ExtraClient::XcodeClaude => check_xcode_claude_synced(&content, proxy_url, has_backup),
-        ExtraClient::Cursor | ExtraClient::Cline | ExtraClient::RooCode | ExtraClient::KiloCode => {
-            (false, false, None)
+        ExtraClient::Hermes => check_hermes_synced(proxy_url),
+        ExtraClient::QClaw => (false, false, None),
+        _ => {
+            let config_path = match config_path_for(client) {
+                Some(p) => p,
+                None => return (false, false, None),
+            };
+
+            let backup_path = backup_path_for(&config_path);
+            let has_backup = backup_path.exists();
+
+            if !config_path.exists() {
+                return (false, has_backup, None);
+            }
+
+            let content = match fs::read_to_string(&config_path) {
+                Ok(c) => c,
+                Err(_) => return (false, has_backup, None),
+            };
+
+            match client {
+                ExtraClient::Chatbox => check_chatbox_synced(&content, proxy_url, has_backup),
+                ExtraClient::CherryStudio => check_cherry_synced(&content, proxy_url, has_backup),
+                ExtraClient::Jan => check_jan_synced(&content, proxy_url, has_backup),
+                ExtraClient::SillyTavern => {
+                    check_sillytavern_synced(&content, proxy_url, has_backup)
+                }
+                ExtraClient::XcodeClaude => {
+                    check_xcode_claude_synced(&content, proxy_url, has_backup)
+                }
+                ExtraClient::Cursor
+                | ExtraClient::Cline
+                | ExtraClient::RooCode
+                | ExtraClient::KiloCode => (false, false, None),
+                ExtraClient::ClawX => {
+                    // ClawX shares config with OpenClaw
+                    openclaw_sync::get_sync_status(proxy_url)
+                }
+                ExtraClient::LobeChat | ExtraClient::BoltAI => (false, false, None),
+                _ => (false, false, None),
+            }
         }
-        ExtraClient::ClawX => {
-            // ClawX shares config with OpenClaw
-            openclaw_sync::get_sync_status(proxy_url)
-        }
-        _ => (false, false, None),
     }
 }
 
@@ -609,7 +709,7 @@ fn check_cherry_synced(
         .and_then(|arr| {
             arr.iter().find_map(|p| {
                 let id = p.get("id").and_then(|v| v.as_str()).unwrap_or_default();
-                if id == HAJIMI_MARKER {
+                if id == SITE_PROFILE.provider_id {
                     p.get("apiHost")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string())
@@ -622,6 +722,40 @@ fn check_cherry_synced(
     let is_synced = current_url
         .as_deref()
         .is_some_and(|u| utils::urls_match(u, proxy_url));
+
+    (is_synced, has_backup, current_url)
+}
+
+fn check_hermes_synced(proxy_url: &str) -> (bool, bool, Option<String>) {
+    let config_path = match hermes_config_path("config.yaml") {
+        Some(path) => path,
+        None => return (false, false, None),
+    };
+    let env_path = match hermes_config_path(".env") {
+        Some(path) => path,
+        None => return (false, false, None),
+    };
+
+    let has_backup = backup_path_for(&config_path).exists() || backup_path_for(&env_path).exists();
+    if !config_path.exists() {
+        return (false, has_backup, None);
+    }
+
+    let content = match fs::read_to_string(&config_path) {
+        Ok(content) => content,
+        Err(_) => return (false, has_backup, None),
+    };
+
+    let config: HermesConfig = serde_yaml::from_str(&content).unwrap_or_default();
+    let current_url = config.model.base_url.clone();
+    let env_ok = fs::read_to_string(&env_path)
+        .ok()
+        .is_some_and(|env_content| has_env_var(&env_content, "OPENAI_API_KEY"));
+    let is_synced = current_url
+        .as_deref()
+        .is_some_and(|url| utils::urls_match(url, proxy_url))
+        && env_ok
+        && config.model.provider.as_deref() == Some("custom");
 
     (is_synced, has_backup, current_url)
 }
@@ -684,6 +818,7 @@ pub fn sync_extra_config(
         ExtraClient::Chatbox => sync_chatbox(proxy_url, api_key, model),
         ExtraClient::CherryStudio => sync_cherry(proxy_url, api_key, model),
         ExtraClient::Jan => sync_jan(proxy_url, api_key, model),
+        ExtraClient::Hermes => sync_hermes(proxy_url, api_key, model),
         ExtraClient::SillyTavern => sync_sillytavern(proxy_url, api_key),
         ExtraClient::XcodeClaude => sync_xcode_claude(proxy_url, api_key, model),
         ExtraClient::Cursor => {
@@ -720,6 +855,10 @@ pub fn sync_extra_config(
                  or sync ClawX directly from the main sync button."
                 .to_string())
         }
+        ExtraClient::QClaw => Err(
+            "QClaw currently uses in-app custom model settings. Open the official docs entry for the site-specific Base URL, API key, and recommended model."
+                .to_string(),
+        ),
     }
 }
 
@@ -764,8 +903,8 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
 
     // Build our provider entry
     let mut provider = serde_json::json!({
-        "id": HAJIMI_MARKER,
-        "name": "哈基米 AI",
+        "id": SITE_PROFILE.provider_id,
+        "name": SITE_PROFILE.provider_name,
         "type": "openai",
         "apiHost": proxy_url,
         "apiKey": api_key,
@@ -786,8 +925,7 @@ fn sync_cherry(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
         .or_insert(serde_json::json!([]));
 
     if let Some(arr) = providers.as_array_mut() {
-        // Remove existing hajimi provider
-        arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(HAJIMI_MARKER));
+        arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(SITE_PROFILE.provider_id));
         arr.push(provider);
     }
 
@@ -815,6 +953,41 @@ fn sync_jan(proxy_url: &str, api_key: &str, _model: Option<&str>) -> Result<(), 
 
     let content = utils::to_json_pretty(&config).map_err(|e| e.to_string())?;
     utils::atomic_write(&config_path, &content).map_err(|e| e.to_string())
+}
+
+fn sync_hermes(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<(), String> {
+    let config_path =
+        hermes_config_path("config.yaml").ok_or("Failed to determine Hermes config path")?;
+    let env_path = hermes_config_path(".env").ok_or("Failed to determine Hermes env path")?;
+
+    ensure_parent_dir(&config_path)?;
+    utils::create_rotated_backup(&config_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
+    utils::create_rotated_backup(&env_path, BACKUP_SUFFIX).map_err(|e| e.to_string())?;
+
+    let mut config = if config_path.exists() {
+        let content = fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read existing config {:?}: {e}", config_path))?;
+        serde_yaml::from_str::<HermesConfig>(&content).unwrap_or_default()
+    } else {
+        HermesConfig::default()
+    };
+
+    let effective_model = model
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(SITE_PROFILE.default_model);
+    let normalized_url = normalize_v1_url(proxy_url);
+
+    config.model.provider = Some("custom".to_string());
+    config.model.base_url = Some(normalized_url);
+    config.model.default = Some(effective_model.to_string());
+
+    let rendered_yaml =
+        serde_yaml::to_string(&config).map_err(|e| format!("Failed to render YAML: {e}"))?;
+    utils::atomic_write(&config_path, &rendered_yaml).map_err(|e| e.to_string())?;
+
+    let current_env = fs::read_to_string(&env_path).unwrap_or_default();
+    let updated_env = upsert_env_var(&current_env, "OPENAI_API_KEY", api_key);
+    utils::atomic_write(&env_path, &updated_env).map_err(|e| e.to_string())
 }
 
 fn sync_sillytavern(proxy_url: &str, api_key: &str) -> Result<(), String> {
@@ -954,6 +1127,29 @@ pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
         return openclaw_sync::restore_openclaw_config();
     }
 
+    if matches!(client, ExtraClient::Hermes) {
+        let config_path =
+            hermes_config_path("config.yaml").ok_or("Failed to determine Hermes config path")?;
+        let env_path = hermes_config_path(".env").ok_or("Failed to determine Hermes env path")?;
+        let mut restored_any = false;
+
+        for path in [&config_path, &env_path] {
+            let backup = backup_path_for(path);
+            if backup.exists() {
+                if path.exists() {
+                    fs::remove_file(path).map_err(|e| format!("Failed to remove config: {e}"))?;
+                }
+                fs::rename(&backup, path).map_err(|e| format!("Failed to restore config: {e}"))?;
+                restored_any = true;
+            }
+        }
+
+        if restored_any {
+            return Ok(());
+        }
+        return Err("No backup file found for Hermes".to_string());
+    }
+
     // XcodeClaude needs extra cleanup: remove defaults keys set during sync
     if matches!(client, ExtraClient::XcodeClaude) {
         #[cfg(target_os = "macos")]
@@ -1002,13 +1198,16 @@ pub fn restore_extra_config(client: &ExtraClient) -> Result<(), String> {
 // Read config content
 // ---------------------------------------------------------------------------
 
-pub fn read_extra_config_content(client: &ExtraClient) -> Result<String, String> {
+pub fn read_extra_config_content(
+    client: &ExtraClient,
+    file_name: Option<&str>,
+) -> Result<String, String> {
     // ClawX shares config with OpenClaw
     if matches!(client, ExtraClient::ClawX) {
         return openclaw_sync::read_openclaw_config_content();
     }
 
-    let config_path = config_path_for(client).ok_or_else(|| {
+    let config_path = config_path_for_file(client, file_name).ok_or_else(|| {
         format!(
             "{} does not use a readable config file",
             client.display_name()
@@ -1034,6 +1233,46 @@ fn backup_path_for(config_path: &std::path::Path) -> PathBuf {
     config_path.with_file_name(format!("{file_name}{BACKUP_SUFFIX}"))
 }
 
+fn normalize_v1_url(proxy_url: &str) -> String {
+    let trimmed = proxy_url.trim().trim_end_matches('/');
+    if trimmed.ends_with("/v1") {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}/v1")
+    }
+}
+
+fn has_env_var(content: &str, key: &str) -> bool {
+    content
+        .lines()
+        .any(|line| line.trim_start().starts_with(&format!("{key}=")))
+}
+
+fn upsert_env_var(content: &str, key: &str, value: &str) -> String {
+    let target_prefix = format!("{key}=");
+    let mut updated = Vec::new();
+    let mut replaced = false;
+
+    for line in content.lines() {
+        if line.trim_start().starts_with(&target_prefix) {
+            updated.push(format!("{key}={value}"));
+            replaced = true;
+        } else {
+            updated.push(line.to_string());
+        }
+    }
+
+    if !replaced {
+        updated.push(format!("{key}={value}"));
+    }
+
+    let mut rendered = updated.join("\n");
+    if !rendered.ends_with('\n') {
+        rendered.push('\n');
+    }
+    rendered
+}
+
 fn ensure_parent_dir(path: &std::path::Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -1054,7 +1293,7 @@ fn read_or_empty_json(path: &PathBuf, scope: &str) -> Result<Value, String> {
 
 pub fn write_extra_config_content(
     client: &ExtraClient,
-    _file_name: &str,
+    file_name: &str,
     content: &str,
 ) -> Result<(), String> {
     // ClaudeVSCode delegates to cli_sync
@@ -1073,7 +1312,7 @@ pub fn write_extra_config_content(
         return openclaw_sync::write_openclaw_config_content(content);
     }
 
-    let config_path = config_path_for(client).ok_or_else(|| {
+    let config_path = config_path_for_file(client, Some(file_name)).ok_or_else(|| {
         format!(
             "{} does not use a writable config file",
             client.display_name()
@@ -1091,7 +1330,7 @@ pub fn write_extra_config_content(
 
 /// Return the parent folder of the config file for a given client.
 pub fn get_config_folder(client: &ExtraClient) -> Option<std::path::PathBuf> {
-    config_path_for(client).and_then(|p| p.parent().map(|d| d.to_path_buf()))
+    config_path_for_file(client, None).and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
 // ---------------------------------------------------------------------------
@@ -1126,9 +1365,11 @@ mod tests {
         assert!(ExtraClient::Chatbox.supports_file_sync());
         assert!(ExtraClient::CherryStudio.supports_file_sync());
         assert!(ExtraClient::Jan.supports_file_sync());
+        assert!(ExtraClient::Hermes.supports_file_sync());
         assert!(ExtraClient::SillyTavern.supports_file_sync());
         assert!(!ExtraClient::BoltAI.supports_file_sync());
         assert!(!ExtraClient::LobeChat.supports_file_sync());
+        assert!(!ExtraClient::QClaw.supports_file_sync());
     }
 
     #[test]
@@ -1201,13 +1442,13 @@ mod tests {
         let mut config = serde_json::json!({
             "providers": [
                 { "id": "openai", "name": "OpenAI", "apiHost": "https://api.openai.com" },
-                { "id": "hajimi", "name": "Old Hajimi", "apiHost": "https://old.proxy" }
+                { "id": SITE_PROFILE.provider_id, "name": "Old Provider", "apiHost": "https://old.proxy" }
             ]
         });
 
         let new_provider = serde_json::json!({
-            "id": "hajimi",
-            "name": "哈基米 AI",
+            "id": SITE_PROFILE.provider_id,
+            "name": SITE_PROFILE.provider_name,
             "type": "openai",
             "apiHost": "https://new.proxy",
             "apiKey": "sk-new",
@@ -1215,14 +1456,14 @@ mod tests {
         });
 
         if let Some(arr) = config.get_mut("providers").and_then(|p| p.as_array_mut()) {
-            arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(HAJIMI_MARKER));
+            arr.retain(|p| p.get("id").and_then(|v| v.as_str()) != Some(SITE_PROFILE.provider_id));
             arr.push(new_provider);
         }
 
         let providers = config["providers"].as_array().unwrap();
-        assert_eq!(providers.len(), 2); // openai + hajimi (replaced, not duplicated)
+        assert_eq!(providers.len(), 2);
         assert_eq!(providers[0]["id"], "openai");
-        assert_eq!(providers[1]["id"], "hajimi");
+        assert_eq!(providers[1]["id"], SITE_PROFILE.provider_id);
         assert_eq!(providers[1]["apiHost"], "https://new.proxy");
     }
 
@@ -1345,7 +1586,7 @@ mod tests {
 
     #[test]
     fn test_all_clients_count() {
-        assert_eq!(ExtraClient::all().len(), 13);
+        assert_eq!(ExtraClient::all().len(), 15);
     }
 
     #[test]
@@ -1362,6 +1603,42 @@ mod tests {
             ExtraClient::Cline.config_files_display(),
             vec!["(extension settings)"]
         );
+        assert_eq!(
+            ExtraClient::Hermes.config_files_display(),
+            vec!["config.yaml", ".env"]
+        );
+        assert_eq!(
+            ExtraClient::QClaw.config_files_display(),
+            vec!["(in-app settings)"]
+        );
+    }
+
+    #[test]
+    fn test_normalize_v1_url_appends_once() {
+        assert_eq!(
+            normalize_v1_url("https://proxy.test"),
+            "https://proxy.test/v1"
+        );
+        assert_eq!(
+            normalize_v1_url("https://proxy.test/v1/"),
+            "https://proxy.test/v1"
+        );
+    }
+
+    #[test]
+    fn test_upsert_env_var_replaces_existing_value() {
+        let original = "FOO=1\nOPENAI_API_KEY=sk-old\nBAR=2\n";
+        let updated = upsert_env_var(original, "OPENAI_API_KEY", "sk-new");
+        assert!(has_env_var(&updated, "OPENAI_API_KEY"));
+        assert!(updated.contains("OPENAI_API_KEY=sk-new"));
+        assert!(!updated.contains("OPENAI_API_KEY=sk-old"));
+        assert!(updated.ends_with('\n'));
+    }
+
+    #[test]
+    fn test_upsert_env_var_appends_missing_value() {
+        let updated = upsert_env_var("FOO=1\n", "OPENAI_API_KEY", "sk-new");
+        assert_eq!(updated, "FOO=1\nOPENAI_API_KEY=sk-new\n");
     }
 
     #[test]

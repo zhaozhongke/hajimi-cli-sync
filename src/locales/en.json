@@ -1,9 +1,9 @@
 {
   "app": {
-    "title": "哈基米AI Switch",
-    "subtitle": "One-click sync your API config to local AI tools",
+    "title": "{{appName}}",
+    "subtitle": "{{appSubtitle}}",
     "docs": "Docs",
-    "brand": "Hajimi AI",
+    "brand": "{{brandName}}",
     "statusNone": "Not synced yet",
     "connected": "Connected",
     "notConnected": "Not connected",
@@ -12,7 +12,7 @@
   },
   "steps": {
     "step1": "API Address",
-    "step1Hint": "Enter your 哈基米AI proxy address",
+    "step1Hint": "Enter your {{brandName}} proxy address",
     "step2": "API Key",
     "step2Hint": "Paste the key from your subscription",
     "step3": "Default Model",
@@ -76,17 +76,20 @@
     "cline": "VS Code AI coding extension — write code with AI directly in your editor",
     "rooCode": "VS Code AI coding extension (Roo fork) — enhanced Cline",
     "kiloCode": "VS Code AI coding extension (Kilo fork) — community-enhanced Cline",
+    "hermes": "Local AI agent runtime with custom providers, model switching, and workflow orchestration",
     "sillytavern": "Roleplay / RP chat frontend with rich character cards and scenario settings",
     "lobechat": "Open-source multi-model chat platform with plugins and knowledge base",
     "boltai": "Native macOS AI assistant with system-level quick access",
     "xcodeClaude": "Claude AI coding agent built into Xcode — AI-powered code completion and chat in Apple's IDE",
-    "clawx": "OpenClaw desktop client — manage AI agents and multi-platform messaging with a GUI"
+    "clawx": "OpenClaw desktop client — manage AI agents and multi-platform messaging with a GUI",
+    "qclaw": "Tencent ecosystem Claw client — this release provides a manual setup entry and site-specific connection guide"
   },
   "toolHint": {
     "claude": "After sync, the VS Code extension (Claude Code) is also configured automatically — no extra steps needed",
+    "hermes": "Sync writes HERMES_HOME/config.yaml and .env. If the new settings are not picked up immediately, restart your terminal or Hermes",
     "openclaw": "After sync, run 'openclaw onboard' in terminal to complete first-time setup (gateway & messaging channels)",
     "sillytavern": "After sync, select the configured API connection in SillyTavern's UI",
-    "cherryStudio": "After sync, switch to the \"哈基米 AI\" provider in Cherry Studio to use it",
+    "cherryStudio": "After sync, switch to the \"{{providerName}}\" provider in Cherry Studio to use it",
     "cursor": "Cursor does not support auto-configuration yet — please configure manually in Settings → Models",
     "cline": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
     "rooCode": "Extension sidebar → Settings → API Provider: \"OpenAI Compatible\" → enter Base URL and API Key",
@@ -159,7 +162,7 @@
   "category": {
     "coding": "Coding",
     "chat": "AI Chat",
-    "agent": "Claw",
+    "agent": "Agent / Claw",
     "rp": "Roleplay"
   },
   "section": {
@@ -188,8 +191,8 @@
     "deleted": "Provider deleted",
     "loading": "Loading providers...",
     "empty": "No providers yet — click \"New Provider\" to get started",
-    "namePlaceholder": "Provider name (e.g. 哈基米AI VIP)",
-    "urlPlaceholder": "API URL (e.g. https://vip.aipro.love)",
+    "namePlaceholder": "Provider name (e.g. {{brandShortName}} VIP)",
+    "urlPlaceholder": "API URL (e.g. {{baseUrlExample}})",
     "apiKeyPlaceholder": "API Key",
     "defaultModelPlaceholder": "Default model (optional)",
     "notesPlaceholder": "Notes (optional)",
@@ -204,7 +207,7 @@
     "migratedDefault": "Default Provider"
   },
   "welcome": {
-    "title": "Welcome to Hajimi AI Switch",
+    "title": "Welcome to {{appName}}",
     "subtitle": "Sync your API proxy config to local AI tools in one click",
     "getStarted": "Get Started",
     "skip": "Skip, set up later",
@@ -224,8 +227,8 @@
     "syncHint": "Click here to sync all tools at once"
   },
   "purchase": {
-    "title": "No plan yet? Buy on Xianyu →",
-    "hint": "哈基米AI plan — stable, affordable, refundable"
+    "title": "No plan yet? Open the package store →",
+    "hint": "{{brandName}} plans with tuned compatibility and low-cost access"
   },
   "account": {
     "modeManual": "Manual Input",

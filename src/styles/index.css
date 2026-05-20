@@ -4,7 +4,7 @@
 }
 
 /* ── Custom color overrides: warm indigo palette ── */
-[data-theme="hajimi-light"] {
+[data-theme="switch-light"] {
   --color-primary: oklch(0.511 0.234 276);
   --color-primary-content: oklch(1 0 0);
   --color-secondary: oklch(0.491 0.27 292);
@@ -28,7 +28,7 @@
   color-scheme: light;
 }
 
-[data-theme="hajimi-dark"] {
+[data-theme="switch-dark"] {
   --color-primary: oklch(0.68 0.2 276);
   --color-primary-content: oklch(0.13 0.03 276);
   --color-secondary: oklch(0.65 0.22 292);
@@ -85,7 +85,7 @@ body {
   border: 1px solid oklch(0.9 0.01 270 / 0.5);
 }
 
-[data-theme="hajimi-dark"] .glass-card {
+[data-theme="switch-dark"] .glass-card {
   background: oklch(0.2 0.015 260 / 0.55);
   border: 1px solid oklch(0.35 0.02 260 / 0.4);
 }
@@ -107,7 +107,7 @@ body {
     oklch(0.97 0.005 260);
 }
 
-[data-theme="hajimi-dark"] .mesh-bg::before {
+[data-theme="switch-dark"] .mesh-bg::before {
   background:
     radial-gradient(ellipse 60% 50% at 10% 20%, oklch(0.25 0.06 280 / 0.35) 0%, transparent 60%),
     radial-gradient(ellipse 50% 60% at 90% 75%, oklch(0.2 0.05 220 / 0.25) 0%, transparent 60%),
@@ -128,7 +128,7 @@ body {
   border-color: oklch(0.511 0.234 276 / 0.3);
 }
 
-[data-theme="hajimi-dark"] .card-hover:hover {
+[data-theme="switch-dark"] .card-hover:hover {
   box-shadow:
     0 4px 12px -2px oklch(0 0 0 / 0.3),
     0 2px 4px -2px oklch(0 0 0 / 0.2);

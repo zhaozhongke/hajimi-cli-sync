@@ -3,6 +3,7 @@ use std::process::Command;
 use std::time::Duration;
 
 use crate::error::{Result, SyncError};
+use crate::site_profile::SITE_PROFILE;
 use crate::utils;
 
 #[cfg(target_os = "windows")]
@@ -394,7 +395,9 @@ async fn download_portable_git() -> Result<()> {
     tracing::info!("[auto_installer] Downloading portable Git...");
 
     let home = dirs::home_dir().ok_or(SyncError::HomeDirectoryNotFound)?;
-    let portable_dir = home.join(".hajimi").join("portable");
+    let portable_dir = home
+        .join(SITE_PROFILE.portable_home_dir_name)
+        .join("portable");
     let git_dir = portable_dir.join("git");
 
     fs::create_dir_all(&git_dir).map_err(|e| SyncError::DirectoryCreationFailed {
@@ -549,7 +552,9 @@ async fn install_nodejs_standalone() -> Result<()> {
     tracing::info!("[auto_installer] Installing standalone Node.js...");
 
     let home = dirs::home_dir().ok_or(SyncError::HomeDirectoryNotFound)?;
-    let node_dir = home.join(".hajimi").join("nodejs");
+    let node_dir = home
+        .join(SITE_PROFILE.portable_home_dir_name)
+        .join("nodejs");
 
     #[cfg(target_os = "windows")]
     let url = "https://nodejs.org/dist/v22.16.0/node-v22.16.0-win-x64.zip";

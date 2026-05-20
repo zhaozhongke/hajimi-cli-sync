@@ -2,11 +2,11 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::site_profile::SITE_PROFILE;
 use crate::utils;
 
 const CONFIG_FILE: &str = "openclaw.json";
 use crate::utils::BACKUP_SUFFIX;
-const PROVIDER_ID: &str = "hajimi";
 
 fn get_config_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".openclaw"))
@@ -58,7 +58,7 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
     let current_url = json
         .get("models")
         .and_then(|m| m.get("providers"))
-        .and_then(|p| p.get(PROVIDER_ID))
+        .and_then(|p| p.get(SITE_PROFILE.provider_id))
         .and_then(|h| h.get("baseUrl"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
@@ -195,7 +195,7 @@ pub async fn sync_openclaw_config(
         config["models"]["mode"] = Value::String("merge".to_string());
     }
 
-    // Build hajimi provider
+    // Build site-specific provider
     let mut provider = serde_json::json!({
         "baseUrl": normalized_url,
         "apiKey": api_key,
@@ -206,15 +206,15 @@ pub async fn sync_openclaw_config(
         provider["models"] = Value::Array(fetched_models);
     }
 
-    // Insert/update hajimi provider
+    // Insert/update site-specific provider
     if let Some(providers) = config["models"]
         .get_mut("providers")
         .and_then(|p| p.as_object_mut())
     {
-        providers.insert(PROVIDER_ID.to_string(), provider);
+        providers.insert(SITE_PROFILE.provider_id.to_string(), provider);
     }
 
-    // Set default agent model to use hajimi provider
+    // Set default agent model to use the site-specific provider
     if let Some(model_id) = model {
         // Ensure agents.defaults.model path exists
         if !config.get("agents").is_some_and(|v| v.is_object()) {
@@ -233,8 +233,7 @@ pub async fn sync_openclaw_config(
             config["agents"]["defaults"]["model"] = serde_json::json!({});
         }
 
-        // Set primary model to hajimi/model_id format
-        let primary_model = format!("{PROVIDER_ID}/{model_id}");
+        let primary_model = format!("{}/{}", SITE_PROFILE.provider_id, model_id);
         config["agents"]["defaults"]["model"]["primary"] = Value::String(primary_model);
     }
 

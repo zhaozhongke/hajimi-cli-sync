@@ -3,11 +3,11 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::site_profile::SITE_PROFILE;
 use crate::utils;
 
 const OPENCODE_CONFIG_FILE: &str = "opencode.json";
 use crate::utils::BACKUP_SUFFIX;
-const PROVIDER_ID: &str = "hajimi";
 
 /// Normalize base URL to ensure it ends with `/v1`
 fn normalize_base_url(input: &str) -> String {
@@ -79,13 +79,13 @@ pub fn get_sync_status(proxy_url: &str) -> (bool, bool, Option<String>) {
 
     let ag_url = json
         .get("provider")
-        .and_then(|p| p.get(PROVIDER_ID))
+        .and_then(|p| p.get(SITE_PROFILE.provider_id))
         .and_then(|prov| prov.get("options"))
         .and_then(|o| o.get("baseURL"))
         .and_then(|v| v.as_str());
     let ag_key = json
         .get("provider")
-        .and_then(|p| p.get(PROVIDER_ID))
+        .and_then(|p| p.get(SITE_PROFILE.provider_id))
         .and_then(|prov| prov.get("options"))
         .and_then(|o| o.get("apiKey"))
         .and_then(|v| v.as_str());
@@ -198,16 +198,22 @@ pub async fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), 
     }
 
     if let Some(provider) = config.get_mut("provider").and_then(|p| p.as_object_mut()) {
-        if !provider.get(PROVIDER_ID).is_some_and(|v| v.is_object()) {
-            provider.insert(PROVIDER_ID.to_string(), serde_json::json!({}));
+        if !provider
+            .get(SITE_PROFILE.provider_id)
+            .is_some_and(|v| v.is_object())
+        {
+            provider.insert(SITE_PROFILE.provider_id.to_string(), serde_json::json!({}));
         }
-        if let Some(ag_provider) = provider.get_mut(PROVIDER_ID) {
+        if let Some(ag_provider) = provider.get_mut(SITE_PROFILE.provider_id) {
             if let Some(obj) = ag_provider.as_object_mut() {
                 obj.insert(
                     "npm".to_string(),
                     Value::String("@ai-sdk/openai".to_string()),
                 );
-                obj.insert("name".to_string(), Value::String("Hajimi".to_string()));
+                obj.insert(
+                    "name".to_string(),
+                    Value::String(SITE_PROFILE.provider_name.to_string()),
+                );
             }
 
             if !ag_provider.get("options").is_some_and(|v| v.is_object()) {
