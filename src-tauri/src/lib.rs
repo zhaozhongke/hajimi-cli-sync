@@ -101,12 +101,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     for app_name in &["claude", "codex", "gemini"] {
         if let Some(app) = get_cli_app(app_name) {
             let proxy_url = get_proxy_url(app_name, &url);
-            let (installed, version) = cli_sync::check_cli_installed(&app);
+            let (_, version) = cli_sync::check_cli_installed(&app);
             let (is_synced, has_backup, current_base_url) =
                 cli_sync::get_sync_status(&app, &proxy_url);
             results.push(CliStatusResult {
                 app: app_name.to_string(),
-                installed,
+                installed: true,
                 version,
                 is_synced,
                 has_backup,
@@ -120,11 +120,11 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // OpenCode
     {
         let proxy_url = get_proxy_url("opencode", &url);
-        let (installed, version) = opencode_sync::check_opencode_installed();
+        let (_, version) = opencode_sync::check_opencode_installed();
         let (is_synced, has_backup, current_base_url) = opencode_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "opencode".to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -137,12 +137,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // Droid
     {
         let proxy_url = get_proxy_url("droid", &url);
-        let (installed, version) = droid_sync::check_droid_installed();
+        let (_, version) = droid_sync::check_droid_installed();
         let (is_synced, has_backup, current_base_url, synced_count) =
             droid_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "droid".to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -155,11 +155,11 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // OpenClaw
     {
         let proxy_url = get_proxy_url("openclaw", &url);
-        let (installed, version) = openclaw_sync::check_openclaw_installed();
+        let (_, version) = openclaw_sync::check_openclaw_installed();
         let (is_synced, has_backup, current_base_url) = openclaw_sync::get_sync_status(&proxy_url);
         results.push(CliStatusResult {
             app: "openclaw".to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
@@ -172,12 +172,12 @@ async fn get_all_cli_status(url: String) -> Result<Vec<CliStatusResult>, String>
     // Extra clients
     for client in ExtraClient::all() {
         let proxy_url = get_proxy_url(client.as_str(), &url);
-        let (installed, version) = extra_clients::check_extra_installed(client);
+        let (_, version) = extra_clients::check_extra_installed(client);
         let (is_synced, has_backup, current_base_url) =
             extra_clients::get_extra_sync_status(client, &proxy_url);
         results.push(CliStatusResult {
             app: client.as_str().to_string(),
-            installed,
+            installed: true,
             version,
             is_synced,
             has_backup,
