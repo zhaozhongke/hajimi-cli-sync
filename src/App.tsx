@@ -271,7 +271,7 @@ function App() {
           await saveProvider(newProvider);
           providerId = newProvider.id;
         }
-        // Activate the provider — this syncs all installed CLIs.
+        // Activate the provider — this syncs all supported local clients.
         await switchProvider(providerId);
         await reloadProviders();
       } catch (e) {
@@ -453,8 +453,12 @@ function App() {
         onOpenDownload={cli.downloadUrl ? () => {
           invoke("open_external_url", { url: cli.downloadUrl });
         } : undefined}
-        onLaunch={cli.launchName ? () => {
-          invoke("launch_app", { name: cli.launchName });
+        onLaunch={cli.launchName ? async () => {
+          try {
+            await invoke("launch_app", { name: cli.launchName });
+          } catch (e) {
+            toast.error(String(e), { duration: 5000 });
+          }
         } : undefined}
         onCommunity={cli.communityUrl ? () => {
           invoke("open_external_url", { url: cli.communityUrl });

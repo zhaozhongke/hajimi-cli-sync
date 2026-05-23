@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { CliStatusResult, SyncAllResult } from "../types";
+import { CLI_LIST } from "../types";
 import { storageKeys } from "../site";
 
 export interface SyncLogEntry {
@@ -16,6 +17,9 @@ export interface SyncLogEntry {
 
 const LOG_KEY = storageKeys.syncLog;
 const MAX_LOG_ENTRIES = 50;
+const SYNCABLE_APP_IDS = new Set(
+  CLI_LIST.filter((cli) => cli.installType !== "manual-config").map((cli) => cli.id)
+);
 
 function readLog(): SyncLogEntry[] {
   try {
@@ -49,19 +53,22 @@ export function useCliSync() {
   const [restoring, setRestoring] = useState<Record<string, boolean>>({});
   const [installing, setInstalling] = useState<Record<string, boolean>>({});
 
+  const refreshStatuses = useCallback(async (url: string) => {
+    const result = await invoke<CliStatusResult[]>("get_all_cli_status", { url });
+    setStatuses(result);
+    return result;
+  }, []);
+
   const detectAll = useCallback(async (url: string) => {
     setLoading(true);
     try {
-      const result = await invoke<CliStatusResult[]>("get_all_cli_status", {
-        url,
-      });
-      setStatuses(result);
+      await refreshStatuses(url);
     } catch (e) {
       console.error("Failed to detect CLIs:", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshStatuses]);
 
   const syncOne = useCallback(
     async (
@@ -76,11 +83,7 @@ export function useCliSync() {
         await invoke("sync_cli", { app, url, apiKey, model });
         toast.success(t("toast.syncSuccess", { name }));
         appendLog({ action: "sync", app: name, success: true });
-        const allStatus = await invoke<CliStatusResult[]>(
-          "get_all_cli_status",
-          { url }
-        );
-        setStatuses(allStatus);
+        await refreshStatuses(url);
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
         toast.error(t("toast.syncFailed", { name, error }), { duration: 5000 });
@@ -89,7 +92,7 @@ export function useCliSync() {
         setSyncing((prev) => ({ ...prev, [app]: false }));
       }
     },
-    [t]
+    [refreshStatuses, t]
   );
 
   const syncAll = useCallback(
@@ -97,7 +100,7 @@ export function useCliSync() {
       setSyncing((prev) => {
         const next = { ...prev };
         statusesRef.current
-          .filter((s) => s.installed)
+          .filter((status) => SYNCABLE_APP_IDS.has(status.app))
           .forEach((s) => (next[s.app] = true));
         return next;
       });
@@ -121,11 +124,7 @@ export function useCliSync() {
           toast.error(t("toast.syncAllFailed"), { duration: 5000 });
           appendLog({ action: "sync_all", app: `${successCount}/${totalCount}`, success: false });
         }
-        const allStatus = await invoke<CliStatusResult[]>(
-          "get_all_cli_status",
-          { url }
-        );
-        setStatuses(allStatus);
+        await refreshStatuses(url);
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
         toast.error(t("toast.syncFailed", { name: "Sync All", error }), { duration: 5000 });
@@ -133,7 +132,7 @@ export function useCliSync() {
         setSyncing({});
       }
     },
-    [t]
+    [refreshStatuses, t]
   );
 
   const restoreOne = useCallback(
@@ -143,11 +142,7 @@ export function useCliSync() {
         await invoke("restore_cli", { app });
         toast.success(t("toast.restoreSuccess", { name }));
         appendLog({ action: "restore", app: name, success: true });
-        const allStatus = await invoke<CliStatusResult[]>(
-          "get_all_cli_status",
-          { url }
-        );
-        setStatuses(allStatus);
+        await refreshStatuses(url);
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
         toast.error(t("toast.restoreFailed", { name, error }), { duration: 5000 });
@@ -156,7 +151,7 @@ export function useCliSync() {
         setRestoring((prev) => ({ ...prev, [app]: false }));
       }
     },
-    [t]
+    [refreshStatuses, t]
   );
 
   const installOne = useCallback(
@@ -183,13 +178,7 @@ export function useCliSync() {
         } else {
           toast.success(t("install.success", { name }));
           appendLog({ action: "install", app: name, success: true });
-          // Wait for PATH to refresh before re-detecting
-          await new Promise((r) => setTimeout(r, 2000));
-          const allStatus = await invoke<CliStatusResult[]>(
-            "get_all_cli_status",
-            { url }
-          );
-          setStatuses(allStatus);
+          await refreshStatuses(url);
         }
       } catch (e: unknown) {
         const error = e instanceof Error ? e.message : String(e);
@@ -198,7 +187,7 @@ export function useCliSync() {
         setInstalling((prev) => ({ ...prev, [app]: false }));
       }
     },
-    [t]
+    [refreshStatuses, t]
   );
 
   const getConfigContent = useCallback(
