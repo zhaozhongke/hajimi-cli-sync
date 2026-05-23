@@ -73,7 +73,6 @@ export function CliCard({
 }: CliCardProps) {
   const { t } = useTranslation();
 
-  const installed = status?.installed ?? false;
   const version = status?.version;
   const isSynced = status?.is_synced ?? false;
   const hasBackup = status?.has_backup ?? false;
@@ -83,9 +82,7 @@ export function CliCard({
 
   return (
     <div
-      className={`card card-compact glass-card card-hover shadow-sm transition-all ${
-        !installed ? "opacity-50" : ""
-      }`}
+      className="card card-compact glass-card card-hover shadow-sm transition-all"
     >
       <div className="card-body gap-2 p-3.5">
         {/* Header row: icon + name + status */}
@@ -94,9 +91,7 @@ export function CliCard({
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
               isSynced
                 ? "bg-success/15 text-success"
-                : installed
-                ? "bg-primary/10 text-primary"
-                : "bg-base-300/50 text-base-content/25"
+                : "bg-primary/10 text-primary"
             }`}>
               <CliIcon name={cli.icon} className="w-4 h-4" />
             </div>
@@ -126,8 +121,6 @@ export function CliCard({
           <div className="shrink-0">
             {loading ? (
               <span className="loading loading-dots loading-xs opacity-40" />
-            ) : !installed ? (
-              <span className="badge badge-ghost badge-xs whitespace-nowrap">{t("cli.notDetected")}</span>
             ) : isSynced ? (
               <span className="badge badge-success badge-xs gap-0.5 whitespace-nowrap">
                 <Check className="w-2.5 h-2.5" />
@@ -139,115 +132,94 @@ export function CliCard({
           </div>
         </div>
 
-        {/* Not installed: hint + link to official site */}
-        {!installed && !loading && (
+        {/* Model selector for syncable tools */}
+        {cli.installType !== "manual-config" && (
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] opacity-40 flex-1">{t("cli.notDetectedHint")}</span>
-            {onOpenDownload && (
+            <ModelSelector
+              value={model}
+              onChange={onModelChange}
+              apiModels={apiModels}
+              modelsLoading={modelsLoading}
+              size="xs"
+            />
+          </div>
+        )}
+
+        {/* Synced models count */}
+        {syncedCount != null && syncedCount > 0 && (
+          <div className="text-[10px] opacity-35 font-medium">
+            {t("cli.syncedModels", { count: syncedCount })}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        {cli.installType !== "manual-config" ? (
+          <div className="flex gap-1.5 mt-0.5">
+            <button
+              className={`btn btn-xs flex-1 shadow-sm ${isSynced ? "btn-outline btn-success" : "btn-primary"}`}
+              onClick={onSync}
+              disabled={busy}
+            >
+              {syncing && <span className="loading loading-spinner loading-xs" />}
+              {t("cli.sync")}
+            </button>
+            <button
+              className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+              onClick={onRestore}
+              disabled={busy || !hasBackup}
+              title={t("cli.restore")}
+            >
+              {restoring && <span className="loading loading-spinner loading-xs" />}
+              {t("cli.restore")}
+            </button>
+            <button
+              className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+              onClick={onViewConfig}
+              disabled={busy}
+              title={t("cli.viewConfig")}
+            >
+              {t("cli.viewConfig")}
+            </button>
+            {onLaunch && cli.launchName && (
               <button
-                className="btn btn-ghost btn-xs opacity-50 hover:opacity-100 transition-opacity shrink-0"
-                onClick={onOpenDownload}
-                title={t("cli.goToSite")}
+                className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+                onClick={onLaunch}
+                title={t("cli.openApp")}
               >
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[10px] opacity-35 flex-1">{t("install.manualConfigHint")}</span>
+            {onLaunch && cli.launchName && (
+              <button
+                className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
+                onClick={onLaunch}
+                title={t("cli.openApp")}
+              >
+                {t("cli.openApp")}
                 <ExternalLink className="w-3 h-3" />
               </button>
             )}
           </div>
         )}
 
-        {/* Installed: sync controls */}
-        {installed && (
-          <>
-            {/* Model selector for syncable tools */}
-            {cli.installType !== "manual-config" && (
-              <div className="flex items-center gap-2 mt-0.5">
-                <ModelSelector
-                  value={model}
-                  onChange={onModelChange}
-                  apiModels={apiModels}
-                  modelsLoading={modelsLoading}
-                  size="xs"
-                />
-              </div>
-            )}
+        {/* Post-sync hint: tell user what they still need to do */}
+        {cli.postSyncHintKey && isSynced && cli.installType !== "manual-config" && (
+          <div className="flex items-start gap-1.5 mt-1.5 p-2 rounded-lg bg-info/8 text-info border border-info/10">
+            <Info className="w-3 h-3 mt-0.5 shrink-0" />
+            <span className="text-[10px] leading-relaxed">{t(cli.postSyncHintKey)}</span>
+          </div>
+        )}
 
-            {/* Synced models count */}
-            {syncedCount != null && syncedCount > 0 && (
-              <div className="text-[10px] opacity-35 font-medium">
-                {t("cli.syncedModels", { count: syncedCount })}
-              </div>
-            )}
-
-            {/* Action buttons */}
-            {cli.installType !== "manual-config" ? (
-              <div className="flex gap-1.5 mt-0.5">
-                <button
-                  className={`btn btn-xs flex-1 shadow-sm ${isSynced ? "btn-outline btn-success" : "btn-primary"}`}
-                  onClick={onSync}
-                  disabled={busy}
-                >
-                  {syncing && <span className="loading loading-spinner loading-xs" />}
-                  {t("cli.sync")}
-                </button>
-                <button
-                  className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
-                  onClick={onRestore}
-                  disabled={busy || !hasBackup}
-                  title={t("cli.restore")}
-                >
-                  {restoring && <span className="loading loading-spinner loading-xs" />}
-                  {t("cli.restore")}
-                </button>
-                <button
-                  className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
-                  onClick={onViewConfig}
-                  disabled={busy}
-                  title={t("cli.viewConfig")}
-                >
-                  {t("cli.viewConfig")}
-                </button>
-                {onLaunch && cli.launchName && (
-                  <button
-                    className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
-                    onClick={onLaunch}
-                    title={t("cli.openApp")}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="text-[10px] opacity-35 flex-1">{t("install.manualConfigHint")}</span>
-                {onLaunch && cli.launchName && (
-                  <button
-                    className="btn btn-ghost btn-xs opacity-70 hover:opacity-100"
-                    onClick={onLaunch}
-                    title={t("cli.openApp")}
-                  >
-                    {t("cli.openApp")}
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Post-sync hint: tell user what they still need to do */}
-            {cli.postSyncHintKey && isSynced && cli.installType !== "manual-config" && (
-              <div className="flex items-start gap-1.5 mt-1.5 p-2 rounded-lg bg-info/8 text-info border border-info/10">
-                <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                <span className="text-[10px] leading-relaxed">{t(cli.postSyncHintKey)}</span>
-              </div>
-            )}
-
-            {/* Manual-config hint always visible */}
-            {cli.postSyncHintKey && cli.installType === "manual-config" && (
-              <div className="flex items-start gap-1.5 mt-1.5 p-2 rounded-lg bg-warning/8 text-warning border border-warning/10">
-                <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                <span className="text-[10px] leading-relaxed">{t(cli.postSyncHintKey)}</span>
-              </div>
-            )}
-          </>
+        {/* Manual-config hint always visible */}
+        {cli.postSyncHintKey && cli.installType === "manual-config" && (
+          <div className="flex items-start gap-1.5 mt-1.5 p-2 rounded-lg bg-warning/8 text-warning border border-warning/10">
+            <Info className="w-3 h-3 mt-0.5 shrink-0" />
+            <span className="text-[10px] leading-relaxed">{t(cli.postSyncHintKey)}</span>
+          </div>
         )}
       </div>
     </div>
