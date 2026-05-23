@@ -966,7 +966,7 @@ fn sync_hermes(proxy_url: &str, api_key: &str, model: Option<&str>) -> Result<()
 
     let mut config = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
-            .map_err(|e| format!("Failed to read existing config {:?}: {e}", config_path))?;
+            .map_err(|e| format!("Failed to read existing config {config_path:?}: {e}"))?;
         serde_yaml::from_str::<HermesConfig>(&content).unwrap_or_default()
     } else {
         HermesConfig::default()

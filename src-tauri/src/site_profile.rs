@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct SiteProfile {
     pub site_key: &'static str,

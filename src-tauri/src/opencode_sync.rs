@@ -176,7 +176,7 @@ pub async fn sync_opencode_config(proxy_url: &str, api_key: &str) -> Result<(), 
 
     let mut config: Value = if config_path.exists() {
         let content = fs::read_to_string(&config_path)
-            .map_err(|e| format!("Failed to read existing config {:?}: {e}", config_path))?;
+            .map_err(|e| format!("Failed to read existing config {config_path:?}: {e}"))?;
         utils::load_json_object_or_empty(&config_path, &content, "opencode_sync")
             .map_err(|e| e.to_string())?
     } else {
